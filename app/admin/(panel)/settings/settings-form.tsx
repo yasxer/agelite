@@ -21,13 +21,29 @@ const PRESET_COLORS = [
   "#0f172a",
 ];
 
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [state, action, pending] = useActionState<SettingsFormState, FormData>(
     updateSettings,
     {}
   );
   const [color, setColor] = useState(settings.primary_color);
+  // Texte du champ hex : peut être temporairement invalide pendant la saisie
+  const [hexInput, setHexInput] = useState(settings.primary_color);
   const [removeLogo, setRemoveLogo] = useState(false);
+
+  function applyColor(value: string) {
+    setColor(value);
+    setHexInput(value);
+  }
+
+  function handleHexChange(raw: string) {
+    let value = raw.trim();
+    if (value && !value.startsWith("#")) value = `#${value}`;
+    setHexInput(value);
+    if (HEX_RE.test(value)) setColor(value.toLowerCase());
+  }
 
   return (
     <form
@@ -85,7 +101,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             <button
               key={preset}
               type="button"
-              onClick={() => setColor(preset)}
+              onClick={() => applyColor(preset)}
               className={`size-9 rounded-full transition ${
                 color === preset
                   ? "ring-2 ring-zinc-900 ring-offset-2"
@@ -95,24 +111,56 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               aria-label={`Couleur ${preset}`}
             />
           ))}
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 px-3 py-1.5">
+        </div>
+
+        {/* Couleur personnalisée : pipette + code hex saisi à la main */}
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl bg-zinc-50 p-3">
+          <label className="relative flex size-11 cursor-pointer items-center justify-center overflow-hidden rounded-xl ring-1 ring-zinc-200 transition hover:scale-105">
             <input
               type="color"
               value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="size-7 cursor-pointer border-0 bg-transparent p-0"
-              aria-label="Couleur personnalisée"
+              onChange={(e) => applyColor(e.target.value)}
+              className="absolute -inset-2 size-16 cursor-pointer border-0 p-0"
+              aria-label="Ouvrir la palette de couleurs"
             />
-            <span className="font-mono text-sm text-zinc-600">{color}</span>
+          </label>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs font-semibold text-zinc-600">
+              Couleur personnalisée
+            </span>
+            <input
+              value={hexInput}
+              onChange={(e) => handleHexChange(e.target.value)}
+              placeholder="#4f46e5"
+              maxLength={7}
+              spellCheck={false}
+              className={`w-28 rounded-lg border bg-white px-2.5 py-1.5 font-mono text-sm outline-none transition ${
+                HEX_RE.test(hexInput)
+                  ? "border-zinc-200 text-zinc-800 focus:border-indigo-400"
+                  : "border-red-300 text-red-600"
+              }`}
+              aria-label="Code couleur hexadécimal"
+            />
           </div>
+          {!HEX_RE.test(hexInput) && (
+            <span className="text-xs font-medium text-red-500">
+              Format : #rrggbb (ex. #e11d48)
+            </span>
+          )}
           <input type="hidden" name="primary_color" value={color} />
         </div>
+
         {/* Aperçu */}
-        <div
-          className="mt-1 flex w-fit items-center gap-3 rounded-xl px-5 py-3 text-sm font-bold text-white"
-          style={{ backgroundColor: color }}
-        >
-          Aperçu du bouton
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <span
+            className="flex items-center rounded-xl px-5 py-3 text-sm font-bold text-white shadow-md"
+            style={{ backgroundColor: color, boxShadow: `0 4px 14px ${color}55` }}
+          >
+            Aperçu du bouton
+          </span>
+          <span className="text-2xl font-extrabold" style={{ color }}>
+            12 500 DA
+          </span>
         </div>
       </div>
 
