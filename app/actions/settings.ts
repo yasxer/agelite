@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
-import { uploadImage } from "@/lib/storage";
+import { deleteImages, uploadImage } from "@/lib/storage";
 import { getSettings, invalidateSettingsCache } from "@/lib/data";
 import { WILAYAS } from "@/lib/wilayas";
 import { requireAdmin } from "./auth";
@@ -54,6 +54,11 @@ export async function updateSettings(
     })
     .eq("id", settings.id);
   if (error) return { error: error.message };
+
+  // L'ancien logo est supprimé du storage s'il a été retiré ou remplacé
+  if (settings.logo_url && settings.logo_url !== logo_url) {
+    await deleteImages([settings.logo_url]);
+  }
 
   invalidateSettingsCache();
   revalidatePath("/");

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { uploadImage } from "@/lib/storage";
+import { deleteImages, uploadImage } from "@/lib/storage";
 import { getProduct } from "@/lib/data";
 import { requireAdmin } from "./auth";
 
@@ -59,6 +59,11 @@ export async function updateProduct(
     })
     .eq("id", product.id);
   if (error) return { error: error.message };
+
+  // Les images retirées sont supprimées définitivement du storage
+  // (seulement après la réussite de la mise à jour en base)
+  const removed = product.images.filter((url) => !images.includes(url));
+  await deleteImages(removed);
 
   revalidatePath("/");
   revalidatePath("/admin/produit");

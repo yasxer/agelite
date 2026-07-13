@@ -21,3 +21,28 @@ export async function uploadImage(file: File, folder: string): Promise<string> {
   const { data } = supabase().storage.from("images").getPublicUrl(path);
   return data.publicUrl;
 }
+
+/** "https://xxx.supabase.co/storage/v1/object/public/images/product/a.jpg" -> "product/a.jpg" */
+function storagePath(url: string): string | null {
+  const marker = "/storage/v1/object/public/images/";
+  const index = url.indexOf(marker);
+  if (index === -1) return null;
+  return decodeURIComponent(url.slice(index + marker.length));
+}
+
+/**
+ * Supprime définitivement des images du bucket Supabase à partir de leurs
+ * URLs publiques. Silencieux en cas d'échec (un fichier orphelin n'est pas
+ * grave, une suppression ne doit jamais faire échouer l'enregistrement).
+ */
+export async function deleteImages(urls: string[]): Promise<void> {
+  const paths = urls
+    .map(storagePath)
+    .filter((p): p is string => p !== null);
+  if (paths.length === 0) return;
+  try {
+    await supabase().storage.from("images").remove(paths);
+  } catch {
+    // fichier déjà supprimé ou stockage injoignable : on ignore
+  }
+}
