@@ -23,8 +23,6 @@ export async function updateProduct(
   const price = Number(formData.get("price"));
   const oldPriceRaw = String(formData.get("old_price") || "").trim();
   const old_price = oldPriceRaw ? Number(oldPriceRaw) : null;
-  const delivery_home = Number(formData.get("delivery_home"));
-  const delivery_desk = Number(formData.get("delivery_desk"));
   const features = String(formData.get("features") || "")
     .split("\n")
     .map((f) => f.trim())
@@ -34,8 +32,6 @@ export async function updateProduct(
   if (!Number.isFinite(price) || price < 0) return { error: "Prix invalide." };
   if (old_price !== null && (!Number.isFinite(old_price) || old_price < 0))
     return { error: "Ancien prix invalide." };
-  if (!Number.isFinite(delivery_home) || !Number.isFinite(delivery_desk))
-    return { error: "Frais de livraison invalides." };
 
   // Images existantes conservées + nouvelles uploadées
   const kept = formData.getAll("existing_images").map(String).filter(Boolean);
@@ -57,8 +53,6 @@ export async function updateProduct(
       description,
       price,
       old_price,
-      delivery_home,
-      delivery_desk,
       features,
       images,
       updated_at: new Date().toISOString(),

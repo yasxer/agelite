@@ -19,15 +19,29 @@ export async function getProduct(): Promise<Product | null> {
   return data as Product | null;
 }
 
+// Cache mémoire court : évite un aller-retour Supabase à chaque requête
+// (notamment /api/delivery appelé à chaque changement de wilaya)
+let settingsCache: { expires: number; data: Settings } | null = null;
+
+export function invalidateSettingsCache(): void {
+  settingsCache = null;
+}
+
 export async function getSettings(): Promise<Settings> {
+  if (settingsCache && settingsCache.expires > Date.now()) {
+    return settingsCache.data;
+  }
   const { data, error } = await supabase()
     .from("settings")
     .select("*")
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`Erreur settings: ${error.message}`);
-  if (data) return data as Settings;
-  return { id: "", updated_at: "", ...DEFAULT_SETTINGS };
+  const settings = data
+    ? (data as Settings)
+    : { id: "", updated_at: "", ...DEFAULT_SETTINGS };
+  settingsCache = { expires: Date.now() + 60_000, data: settings };
+  return settings;
 }
 
 export type OrderFilters = {

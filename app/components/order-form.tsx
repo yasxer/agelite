@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import {
+  AlertTriangle,
   CheckCircle2,
   Home,
   Loader2,
@@ -27,7 +28,7 @@ type Center = {
 
 type DeliveryData = {
   homeFee: number;
-  deskFee: number;
+  deskFee: number | null;
   centers: Center[];
 };
 
@@ -35,15 +36,10 @@ function formatDA(n: number) {
   return `${n.toLocaleString("fr-DZ")} DA`;
 }
 
-export function OrderForm({
-  price,
-  deliveryHome,
-  deliveryDesk,
-}: {
-  price: number;
-  deliveryHome: number;
-  deliveryDesk: number;
-}) {
+// Cache côté navigateur : re-sélectionner une wilaya déjà chargée est instantané
+const deliveryCache = new Map<string, DeliveryData>();
+
+export function OrderForm({ price }: { price: number }) {
   const [state, action, pending] = useActionState(createOrder, initialState);
   const [quantity, setQuantity] = useState(1);
   const [deliveryType, setDeliveryType] = useState<"domicile" | "stopdesk">(
@@ -51,6 +47,7 @@ export function OrderForm({
   );
   const [wilaya, setWilaya] = useState("");
   const [delivery, setDelivery] = useState<DeliveryData | null>(null);
+  const [feesError, setFeesError] = useState(false);
   const [loadingFees, setLoadingFees] = useState(false);
   const [stopdeskId, setStopdeskId] = useState<number | null>(null);
   const requestSeq = useRef(0);
@@ -59,32 +56,49 @@ export function OrderForm({
   function handleWilayaChange(value: string) {
     setWilaya(value);
     setStopdeskId(null);
-    if (!value) return;
+    setFeesError(false);
+    if (!value) {
+      setDelivery(null);
+      return;
+    }
+    const cached = deliveryCache.get(value);
+    if (cached) {
+      setDelivery(cached);
+      return;
+    }
+    setDelivery(null);
     const seq = ++requestSeq.current;
     setLoadingFees(true);
     fetch(`/api/delivery?wilaya=${encodeURIComponent(value)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data: DeliveryData | null) => {
-        if (seq === requestSeq.current) setDelivery(data);
+        if (data) deliveryCache.set(value, data);
+        if (seq !== requestSeq.current) return;
+        setDelivery(data);
+        setFeesError(data === null);
       })
       .catch(() => {
-        if (seq === requestSeq.current) setDelivery(null);
+        if (seq !== requestSeq.current) return;
+        setDelivery(null);
+        setFeesError(true);
       })
       .finally(() => {
         if (seq === requestSeq.current) setLoadingFees(false);
       });
   }
 
-  const homeFee = delivery?.homeFee ?? deliveryHome;
-  const deskFee = delivery?.deskFee ?? deliveryDesk;
   const centers = delivery?.centers ?? [];
   const selectedCenter = centers.find((c) => c.id === stopdeskId) ?? null;
+  const stopdeskAvailable = centers.length > 0;
 
   const fee =
-    deliveryType === "domicile"
-      ? homeFee
-      : selectedCenter?.fee ?? deskFee;
-  const total = price * quantity + fee;
+    delivery === null
+      ? null
+      : deliveryType === "domicile"
+        ? delivery.homeFee
+        : selectedCenter?.fee ?? delivery.deskFee ?? delivery.homeFee;
+  const total = price * quantity + (fee ?? 0);
+  const ready = Boolean(wilaya) && !loadingFees && delivery !== null;
 
   if (state.success) {
     return (
@@ -162,26 +176,49 @@ export function OrderForm({
         ))}
       </select>
 
+      {feesError && (
+        <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          Impossible de charger les tarifs de livraison. Vérifiez votre connexion
+          puis re-sélectionnez votre wilaya.
+        </p>
+      )}
+
       {/* Type de livraison */}
       <div className="grid grid-cols-2 gap-3">
         {(
           [
-            { value: "domicile", label: "À domicile", icon: Home, fee: homeFee },
-            { value: "stopdesk", label: "Bureau (Stopdesk)", icon: Store, fee: deskFee },
+            {
+              value: "domicile",
+              label: "À domicile",
+              icon: Home,
+              optionFee: delivery?.homeFee ?? null,
+              disabled: false,
+            },
+            {
+              value: "stopdesk",
+              label: "Bureau (Stopdesk)",
+              icon: Store,
+              optionFee: delivery?.deskFee ?? null,
+              disabled: Boolean(delivery) && !stopdeskAvailable,
+            },
           ] as const
-        ).map(({ value, label, icon: Icon, fee: optionFee }) => (
+        ).map(({ value, label, icon: Icon, optionFee, disabled }) => (
           <label
             key={value}
-            className={`flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 p-3 text-center transition ${
-              deliveryType === value
-                ? "border-(--primary) bg-(--primary)/5"
-                : "border-zinc-200 hover:border-zinc-300"
+            className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center transition ${
+              disabled
+                ? "cursor-not-allowed border-zinc-100 opacity-50"
+                : deliveryType === value
+                  ? "cursor-pointer border-(--primary) bg-(--primary)/5"
+                  : "cursor-pointer border-zinc-200 hover:border-zinc-300"
             }`}
           >
             <input
               type="radio"
               name="delivery_type"
               value={value}
+              disabled={disabled}
               checked={deliveryType === value}
               onChange={() => setDeliveryType(value)}
               className="sr-only"
@@ -191,14 +228,18 @@ export function OrderForm({
             />
             <span className="text-sm font-semibold text-zinc-800">{label}</span>
             <span className="text-xs text-zinc-500">
-              {loadingFees ? "..." : wilaya ? formatDA(optionFee) : "—"}
+              {loadingFees
+                ? "..."
+                : optionFee !== null
+                  ? formatDA(optionFee)
+                  : "—"}
             </span>
           </label>
         ))}
       </div>
 
       {/* Stopdesk : choix du bureau Yalidine de la wilaya */}
-      {deliveryType === "stopdesk" && centers.length > 0 && (
+      {deliveryType === "stopdesk" && stopdeskAvailable && (
         <div className="flex flex-col gap-2">
           <select
             name="stopdesk_id"
@@ -225,26 +266,25 @@ export function OrderForm({
         </div>
       )}
 
-      {/* Commune : saisie manuelle (domicile, ou stopdesk sans liste de bureaux) */}
-      {(deliveryType === "domicile" || centers.length === 0) && (
-        <input
-          name="commune"
-          required
-          placeholder="Commune"
-          className={inputClass}
-        />
-      )}
-
+      {/* Commune : saisie manuelle pour la livraison à domicile */}
       {deliveryType === "domicile" && (
-        <div className="relative">
-          <MapPin className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
+        <>
           <input
-            name="address"
+            name="commune"
             required
-            placeholder="Adresse complète"
-            className={`${inputClass} pl-11`}
+            placeholder="Commune"
+            className={inputClass}
           />
-        </div>
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
+            <input
+              name="address"
+              required
+              placeholder="Adresse complète"
+              className={`${inputClass} pl-11`}
+            />
+          </div>
+        </>
       )}
 
       {/* Quantité */}
@@ -281,13 +321,17 @@ export function OrderForm({
         <div className="flex justify-between text-zinc-600">
           <span>Livraison</span>
           <span>
-            {loadingFees ? "..." : wilaya ? formatDA(fee) : "choisissez une wilaya"}
+            {loadingFees
+              ? "..."
+              : fee !== null
+                ? formatDA(fee)
+                : "choisissez une wilaya"}
           </span>
         </div>
         <div className="mt-1 flex justify-between border-t border-zinc-200 pt-2 text-base font-bold text-zinc-900">
           <span>Total</span>
           <span className="text-(--primary)">
-            {wilaya ? formatDA(total) : formatDA(price * quantity)}
+            {fee !== null ? formatDA(total) : formatDA(price * quantity)}
           </span>
         </div>
       </div>
@@ -300,7 +344,7 @@ export function OrderForm({
 
       <button
         type="submit"
-        disabled={pending || loadingFees}
+        disabled={pending || !ready}
         className="flex items-center justify-center gap-2 rounded-xl bg-(--primary) px-6 py-4 text-base font-bold text-white shadow-lg shadow-(--primary)/25 transition hover:opacity-90 disabled:opacity-60"
       >
         {pending ? (
@@ -308,8 +352,10 @@ export function OrderForm({
             <Loader2 className="size-5 animate-spin" />
             Envoi en cours...
           </>
+        ) : ready ? (
+          <>Confirmer ma commande — {formatDA(total)}</>
         ) : (
-          <>Confirmer ma commande{wilaya ? ` — ${formatDA(total)}` : ""}</>
+          <>Choisissez votre wilaya</>
         )}
       </button>
       <p className="text-center text-xs text-zinc-400">

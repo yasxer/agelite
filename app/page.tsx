@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ArrowDown, BadgeCheck, Banknote, PackageOpen, Truck } from "lucide-react";
 import { getProduct, getSettings } from "@/lib/data";
+import { Gallery } from "./components/gallery";
 import { OrderForm } from "./components/order-form";
 
 export const dynamic = "force-dynamic";
@@ -98,7 +99,7 @@ export default async function LandingPage() {
           <div className="mt-1 flex items-center gap-4 text-xs font-semibold text-zinc-500">
             <span className="flex items-center gap-1.5">
               <Truck className="size-4 text-(--primary)" />
-              58 wilayas
+              69 wilayas
             </span>
             <span className="h-3 w-px bg-zinc-300" />
             <span className="flex items-center gap-1.5">
@@ -115,25 +116,15 @@ export default async function LandingPage() {
           </a>
         </div>
 
-        {/* Images de haut en bas, encadrées */}
-        <div className="flex flex-col gap-6">
-          {product.images.map((src, i) => (
-            <div key={src} className={`relative ${i === 0 ? "animate-fade-up-delay" : ""}`}>
-              {/* Cadre décoratif décalé, alterné gauche/droite */}
-              <div
-                aria-hidden="true"
-                className={`absolute -inset-y-2 rounded-[1.9rem] bg-(--primary)/10 ${
-                  i % 2 === 0 ? "-left-2 right-3" : "-right-2 left-3"
-                }`}
-              />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={src}
-                alt={product.name}
-                className="relative w-full rounded-3xl shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-200/60"
-              />
-            </div>
-          ))}
+        {/* Galerie : grande image + miniatures, zoom au clic, swipe */}
+        <div className="animate-fade-up-delay relative">
+          <div
+            aria-hidden="true"
+            className="absolute -inset-x-2 -inset-y-2 rounded-4xl bg-(--primary)/10"
+          />
+          <div className="relative">
+            <Gallery images={product.images} alt={product.name} />
+          </div>
         </div>
 
         {/* Formulaire */}
@@ -146,11 +137,7 @@ export default async function LandingPage() {
               Vous ne payez qu&apos;à la réception de votre colis
             </p>
           </div>
-          <OrderForm
-            price={product.price}
-            deliveryHome={product.delivery_home}
-            deliveryDesk={product.delivery_desk}
-          />
+          <OrderForm price={product.price} />
         </div>
       </main>
 

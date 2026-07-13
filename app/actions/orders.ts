@@ -43,8 +43,15 @@ export async function createOrder(
   const [product, settings] = await Promise.all([getProduct(), getSettings()]);
   if (!product) return { error: "Produit indisponible pour le moment." };
 
-  // Tarifs et bureaux recalculés côté serveur (jamais confiés au client)
+  // Tarifs et bureaux recalculés côté serveur depuis Yalidine
+  // (jamais confiés au client, aucun tarif manuel)
   const info = await getDeliveryInfo(wilaya, settings.from_wilaya);
+  if (info.homeFee === null) {
+    return {
+      error:
+        "Les tarifs de livraison sont momentanément indisponibles. Veuillez réessayer dans un instant.",
+    };
+  }
 
   let delivery: number;
   let stopdesk_name: string | null = null;
@@ -52,21 +59,15 @@ export async function createOrder(
   let finalCommune = commune;
 
   if (delivery_type === "stopdesk") {
-    if (info.centers.length > 0) {
-      const center = info.centers.find((c) => c.id === stopdeskId);
-      if (!center) return { error: "Veuillez choisir un bureau de livraison." };
-      stopdesk_id = center.id;
-      stopdesk_name = center.name;
-      finalCommune = center.commune;
-      delivery = center.fee ?? info.deskFee ?? product.delivery_desk;
-    } else {
-      // Yalidine indisponible : commune saisie manuellement + tarif de secours
-      if (finalCommune.length < 2) return { error: "Veuillez entrer votre commune." };
-      delivery = info.deskFee ?? product.delivery_desk;
-    }
+    const center = info.centers.find((c) => c.id === stopdeskId);
+    if (!center) return { error: "Veuillez choisir un bureau de livraison." };
+    stopdesk_id = center.id;
+    stopdesk_name = center.name;
+    finalCommune = center.commune;
+    delivery = center.fee ?? info.deskFee ?? info.homeFee;
   } else {
     if (finalCommune.length < 2) return { error: "Veuillez entrer votre commune." };
-    delivery = info.homeFee ?? product.delivery_home;
+    delivery = info.homeFee;
   }
 
   const total = product.price * quantity + delivery;

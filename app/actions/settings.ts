@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { uploadImage } from "@/lib/storage";
-import { getSettings } from "@/lib/data";
+import { getSettings, invalidateSettingsCache } from "@/lib/data";
 import { WILAYAS } from "@/lib/wilayas";
 import { requireAdmin } from "./auth";
 
@@ -55,6 +55,7 @@ export async function updateSettings(
     .eq("id", settings.id);
   if (error) return { error: error.message };
 
+  invalidateSettingsCache();
   revalidatePath("/");
   revalidatePath("/admin", "layout");
   return { success: true };

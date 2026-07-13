@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  CheckCircle2,
-  Home,
-  ImageOff,
-  Pencil,
-  Store,
-} from "lucide-react";
+import { CheckCircle2, ImageOff, Pencil, Truck } from "lucide-react";
 import { getProduct } from "@/lib/data";
 import { ProductForm } from "./product-form";
 
@@ -107,12 +101,8 @@ export default async function ProductPage({
 
               <div className="mt-auto flex flex-wrap gap-3 border-t border-zinc-100 pt-4 text-xs font-medium text-zinc-500">
                 <span className="inline-flex items-center gap-1.5">
-                  <Home className="size-3.5" />
-                  Domicile : {formatDA(product.delivery_home)}
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Store className="size-3.5" />
-                  Stopdesk : {formatDA(product.delivery_desk)}
+                  <Truck className="size-3.5" />
+                  Frais de livraison via Yalidine
                 </span>
                 <span className="ml-auto">
                   {product.images.length} image{product.images.length > 1 ? "s" : ""}

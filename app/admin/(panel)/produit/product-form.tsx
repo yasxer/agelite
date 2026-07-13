@@ -62,31 +62,12 @@ export function ProductForm({ product }: { product: Product }) {
             className={inputClass}
           />
         </label>
-        <label className={labelClass}>
-          Livraison à domicile (DA)
-          <input
-            name="delivery_home"
-            type="number"
-            min="0"
-            step="any"
-            required
-            defaultValue={product.delivery_home}
-            className={inputClass}
-          />
-        </label>
-        <label className={labelClass}>
-          Livraison stopdesk (DA)
-          <input
-            name="delivery_desk"
-            type="number"
-            min="0"
-            step="any"
-            required
-            defaultValue={product.delivery_desk}
-            className={inputClass}
-          />
-        </label>
       </div>
+
+      <p className="rounded-xl bg-zinc-50 px-4 py-3 text-xs text-zinc-500">
+        Les frais de livraison sont récupérés automatiquement depuis votre compte
+        Yalidine selon la wilaya du client.
+      </p>
 
       <label className={labelClass}>
         Points forts (un par ligne, affichés avec une coche sur la landing)
