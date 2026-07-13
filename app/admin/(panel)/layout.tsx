@@ -16,9 +16,12 @@ export default async function AdminLayout({
   const settings = await getSettings();
 
   return (
-    <div className="flex min-h-screen bg-zinc-100">
+    <div className="flex min-h-screen bg-[#f4f5f9]">
       <Sidebar storeName={settings.store_name} logoUrl={settings.logo_url} />
-      <main className="flex-1 p-4 pb-24 sm:p-8 lg:pb-8">{children}</main>
+      {/* pt-18/pb-24 mobile : espace pour le header et la nav flottante */}
+      <main className="min-w-0 flex-1 p-4 pb-28 pt-18 sm:p-8 sm:pt-8 lg:pb-8">
+        {children}
+      </main>
     </div>
   );
 }

@@ -46,7 +46,7 @@ export default async function ProductPage({
         {!editing && (
           <Link
             href="/admin/produit?edit=1"
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
+            className="flex items-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500"
           >
             <Pencil className="size-4" />
             Modifier
@@ -58,7 +58,7 @@ export default async function ProductPage({
         <ProductForm product={product} />
       ) : (
         /* Carte d'aperçu */
-        <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200/60">
+        <div className="overflow-hidden rounded-3xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5">
           <div className="grid sm:grid-cols-[240px_1fr]">
             {product.images[0] ? (
               // eslint-disable-next-line @next/next/no-img-element

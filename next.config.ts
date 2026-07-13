@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Masque le badge "N" (dev tools) qui chevauche la navigation mobile
+  devIndicators: false,
   experimental: {
     serverActions: {
       // Upload d'images produit/logo via Server Actions (5 Mo par image)

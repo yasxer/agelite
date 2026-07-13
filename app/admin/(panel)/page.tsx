@@ -97,7 +97,7 @@ export default async function DashboardPage() {
         {cards.map(({ label, value, icon: Icon, accent }) => (
           <div
             key={label}
-            className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200/60"
+            className="flex flex-col gap-3 rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 transition hover:-translate-y-0.5 hover:shadow-[0_2px_4px_rgba(16,24,40,0.06),0_20px_40px_-16px_rgba(16,24,40,0.18)]"
           >
             <span className={`flex size-10 items-center justify-center rounded-xl ${accent}`}>
               <Icon className="size-5" />
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Graphique 14 jours */}
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200/60 sm:p-6">
+      <div className="rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 sm:p-6">
         <div className="mb-5 flex items-center gap-2">
           <TrendingUp className="size-5 text-indigo-600" />
           <h2 className="font-bold text-zinc-900">Commandes — 14 derniers jours</h2>
@@ -123,8 +123,10 @@ export default async function DashboardPage() {
                 {d.count}
               </span>
               <div
-                className={`w-full rounded-t-md transition ${
-                  d.count > 0 ? "bg-indigo-500 group-hover:bg-indigo-600" : "bg-zinc-100"
+                className={`w-full rounded-full transition ${
+                  d.count > 0
+                    ? "bg-linear-to-t from-indigo-600 to-indigo-400 group-hover:from-indigo-700 group-hover:to-indigo-500"
+                    : "bg-zinc-100"
                 }`}
                 style={{ height: `${Math.max((d.count / maxCount) * 100, 4)}%` }}
               />
@@ -135,7 +137,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Répartition par statut */}
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200/60 sm:p-6">
+      <div className="rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 sm:p-6">
         <h2 className="mb-4 font-bold text-zinc-900">Répartition par statut</h2>
         <div className="flex flex-wrap gap-3">
           {ORDER_STATUSES.map((s) => {
@@ -154,7 +156,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Dernières commandes */}
-      <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-200/60 sm:p-6">
+      <div className="rounded-3xl bg-white p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-bold text-zinc-900">Dernières commandes</h2>
           <Link

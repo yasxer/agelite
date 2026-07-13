@@ -32,7 +32,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   return (
     <form
       action={action}
-      className="flex flex-col gap-5 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-200/60 sm:p-8"
+      className="flex flex-col gap-5 rounded-3xl bg-white p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 sm:p-8"
     >
       <label className={labelClass}>
         Nom de la boutique
@@ -146,7 +146,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       <button
         type="submit"
         disabled={pending}
-        className="flex w-fit items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        className="flex w-fit items-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
         {pending ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
         Enregistrer

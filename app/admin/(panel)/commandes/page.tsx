@@ -79,9 +79,9 @@ export default async function OrdersPage({
       {/* Filtres */}
       <form
         method="GET"
-        className="flex flex-wrap items-end gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200/60"
+        className="grid grid-cols-2 items-end gap-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 lg:flex lg:flex-wrap"
       >
-        <div className="relative min-w-48 flex-1">
+        <div className="relative col-span-2 lg:min-w-48 lg:flex-1">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" />
           <input
             name="q"
@@ -90,7 +90,11 @@ export default async function OrdersPage({
             className={`${selectClass} w-full pl-9`}
           />
         </div>
-        <select name="status" defaultValue={statusParam} className={selectClass}>
+        <select
+          name="status"
+          defaultValue={statusParam}
+          className={`${selectClass} w-full lg:w-auto`}
+        >
           <option value="">Tous les statuts</option>
           {ORDER_STATUSES.map((s) => (
             <option key={s.value} value={s.value}>
@@ -101,7 +105,7 @@ export default async function OrdersPage({
         <select
           name="wilaya"
           defaultValue={filters.wilaya ?? ""}
-          className={selectClass}
+          className={`${selectClass} w-full lg:w-auto`}
         >
           <option value="">Toutes les wilayas</option>
           {WILAYAS.map((w) => (
@@ -116,7 +120,7 @@ export default async function OrdersPage({
             type="date"
             name="from"
             defaultValue={filters.from ?? ""}
-            className={selectClass}
+            className={`${selectClass} w-full lg:w-auto`}
           />
         </label>
         <label className="flex flex-col gap-1 text-xs font-medium text-zinc-500">
@@ -125,12 +129,12 @@ export default async function OrdersPage({
             type="date"
             name="to"
             defaultValue={filters.to ?? ""}
-            className={selectClass}
+            className={`${selectClass} w-full lg:w-auto`}
           />
         </label>
         <button
           type="submit"
-          className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
+          className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-md shadow-indigo-600/25 transition hover:bg-indigo-500 lg:col-span-1 lg:py-2"
         >
           <Filter className="size-4" />
           Filtrer
@@ -138,14 +142,14 @@ export default async function OrdersPage({
       </form>
 
       {orders.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-2xl bg-white py-16 text-center shadow-sm ring-1 ring-zinc-200/60">
+        <div className="flex flex-col items-center gap-3 rounded-3xl bg-white py-16 text-center shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5">
           <Inbox className="size-10 text-zinc-300" strokeWidth={1.5} />
           <p className="text-zinc-500">Aucune commande ne correspond à ces filtres.</p>
         </div>
       ) : (
         <>
           {/* Tableau desktop */}
-          <div className="hidden overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200/60 lg:block">
+          <div className="hidden overflow-x-auto rounded-3xl bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5 lg:block">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-xs uppercase tracking-wide text-zinc-400">
@@ -214,7 +218,7 @@ export default async function OrdersPage({
             {orders.map((o) => (
               <div
                 key={o.id}
-                className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-200/60"
+                className="flex flex-col gap-3 rounded-3xl bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04),0_12px_32px_-16px_rgba(16,24,40,0.12)] ring-1 ring-zinc-900/5"
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>

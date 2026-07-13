@@ -25,7 +25,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
+        className="flex items-center justify-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
         {pending ? <Loader2 className="size-5 animate-spin" /> : <LogIn className="size-5" />}
         Se connecter
