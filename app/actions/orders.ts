@@ -43,6 +43,16 @@ export async function createOrder(
   const [product, settings] = await Promise.all([getProduct(), getSettings()]);
   if (!product) return { error: "Produit indisponible pour le moment." };
 
+  // Variantes : obligatoires si le produit en définit
+  const color = String(formData.get("color") || "").trim() || null;
+  const size = String(formData.get("size") || "").trim() || null;
+  if (product.colors.length > 0 && !product.colors.some((c) => c.name === color)) {
+    return { error: "Veuillez choisir une couleur." };
+  }
+  if (product.sizes.length > 0 && !product.sizes.includes(size ?? "")) {
+    return { error: "Veuillez choisir une taille." };
+  }
+
   // Tarifs et bureaux recalculés côté serveur depuis Yalidine
   // (jamais confiés au client, aucun tarif manuel)
   const info = await getDeliveryInfo(wilaya, settings.from_wilaya);
@@ -81,6 +91,8 @@ export async function createOrder(
     delivery_type,
     stopdesk_id,
     stopdesk_name,
+    color,
+    size,
     quantity,
     total,
   });
@@ -94,6 +106,8 @@ export async function createOrder(
     address: address || null,
     delivery_type,
     stopdesk_name,
+    color,
+    size,
     quantity,
     total,
     productName: product.name,

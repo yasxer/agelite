@@ -8,6 +8,8 @@ export type OrderNotification = {
   address: string | null;
   delivery_type: "domicile" | "stopdesk";
   stopdesk_name: string | null;
+  color: string | null;
+  size: string | null;
   quantity: number;
   total: number;
   productName: string;
@@ -32,6 +34,7 @@ export async function notifyNewOrder(order: OrderNotification): Promise<void> {
       ? `Bureau (Stopdesk)${order.stopdesk_name ? ` — ${esc(order.stopdesk_name)}` : ""}`
       : `À domicile${order.address ? ` — ${esc(order.address)}` : ""}`;
 
+  const variante = [order.color, order.size].filter(Boolean).join(" / ");
   const text = [
     "<b>Nouvelle commande</b>",
     "",
@@ -41,6 +44,7 @@ export async function notifyNewOrder(order: OrderNotification): Promise<void> {
     `<b>Commune :</b> ${esc(order.commune)}`,
     `<b>Livraison :</b> ${lieu}`,
     `<b>Produit :</b> ${esc(order.productName)} x${order.quantity}`,
+    ...(variante ? [`<b>Variante :</b> ${esc(variante)}`] : []),
     `<b>Total :</b> ${order.total.toLocaleString("fr-DZ")} DA`,
   ].join("\n");
 

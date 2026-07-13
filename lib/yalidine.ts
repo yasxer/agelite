@@ -51,7 +51,13 @@ export async function createParcel(
     address: order.address || order.commune,
     to_commune_name: order.commune,
     to_wilaya_name: wilayaName(order.wilaya),
-    product_list: `${productName} x${order.quantity}`,
+    product_list: [
+      productName,
+      [order.color, order.size].filter(Boolean).join(" / "),
+      `x${order.quantity}`,
+    ]
+      .filter(Boolean)
+      .join(" - "),
     price: Math.round(order.total),
     do_insurance: false,
     declared_value: Math.round(order.total),

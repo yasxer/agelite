@@ -14,6 +14,8 @@ create table if not exists public.product (
   delivery_desk numeric not null default 350,
   images jsonb not null default '[]'::jsonb,
   features jsonb not null default '[]'::jsonb,
+  colors jsonb not null default '[]'::jsonb,   -- [{ "name": "Noir", "hex": "#111111" }]
+  sizes jsonb not null default '[]'::jsonb,    -- ["S", "M", "L"]
   updated_at timestamptz not null default now()
 );
 
@@ -29,6 +31,8 @@ create table if not exists public.orders (
   delivery_type text not null default 'domicile' check (delivery_type in ('domicile','stopdesk')),
   stopdesk_id int,
   stopdesk_name text,
+  color text,
+  size text,
   quantity int not null default 1 check (quantity > 0),
   total numeric not null default 0,
   status text not null default 'en_attente'

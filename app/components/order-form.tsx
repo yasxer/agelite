@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createOrder, type OrderFormState } from "@/app/actions/orders";
 import { WILAYAS } from "@/lib/wilayas";
+import type { ProductColor } from "@/lib/types";
 
 const initialState: OrderFormState = {};
 
@@ -39,9 +40,19 @@ function formatDA(n: number) {
 // Cache côté navigateur : re-sélectionner une wilaya déjà chargée est instantané
 const deliveryCache = new Map<string, DeliveryData>();
 
-export function OrderForm({ price }: { price: number }) {
+export function OrderForm({
+  price,
+  colors,
+  sizes,
+}: {
+  price: number;
+  colors: ProductColor[];
+  sizes: string[];
+}) {
   const [state, action, pending] = useActionState(createOrder, initialState);
   const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [deliveryType, setDeliveryType] = useState<"domicile" | "stopdesk">(
     "domicile"
   );
@@ -98,7 +109,10 @@ export function OrderForm({ price }: { price: number }) {
         ? delivery.homeFee
         : selectedCenter?.fee ?? delivery.deskFee ?? delivery.homeFee;
   const total = price * quantity + (fee ?? 0);
-  const ready = Boolean(wilaya) && !loadingFees && delivery !== null;
+  const variantsOk =
+    (colors.length === 0 || selectedColor !== null) &&
+    (sizes.length === 0 || selectedSize !== null);
+  const ready = Boolean(wilaya) && !loadingFees && delivery !== null && variantsOk;
 
   if (state.success) {
     return (
@@ -136,6 +150,62 @@ export function OrderForm({ price }: { price: number }) {
         className="hidden"
         aria-hidden="true"
       />
+
+      {/* Choix de la couleur */}
+      {colors.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold text-zinc-700">
+            Couleur{" "}
+            {selectedColor ? (
+              <span className="font-normal text-zinc-500">— {selectedColor}</span>
+            ) : (
+              <span className="font-normal text-zinc-400">(choisissez)</span>
+            )}
+          </span>
+          <div className="flex flex-wrap gap-2.5">
+            {colors.map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => setSelectedColor(c.name)}
+                title={c.name}
+                aria-label={`Couleur ${c.name}`}
+                className={`size-10 rounded-full ring-2 ring-offset-2 transition ${
+                  selectedColor === c.name
+                    ? "ring-(--primary) scale-110"
+                    : "ring-zinc-200 hover:scale-105"
+                }`}
+                style={{ backgroundColor: c.hex }}
+              />
+            ))}
+          </div>
+          <input type="hidden" name="color" value={selectedColor ?? ""} />
+        </div>
+      )}
+
+      {/* Choix de la taille */}
+      {sizes.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold text-zinc-700">Taille</span>
+          <div className="flex flex-wrap gap-2">
+            {sizes.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSelectedSize(s)}
+                className={`min-w-11 rounded-xl border-2 px-3.5 py-2 text-sm font-bold transition ${
+                  selectedSize === s
+                    ? "border-(--primary) bg-(--primary)/5 text-(--primary)"
+                    : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <input type="hidden" name="size" value={selectedSize ?? ""} />
+        </div>
+      )}
 
       <div className="relative">
         <User className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
@@ -354,6 +424,12 @@ export function OrderForm({ price }: { price: number }) {
           </>
         ) : ready ? (
           <>Confirmer ma commande — {formatDA(total)}</>
+        ) : !variantsOk ? (
+          <>
+            {colors.length > 0 && selectedColor === null
+              ? "Choisissez une couleur"
+              : "Choisissez une taille"}
+          </>
         ) : (
           <>Choisissez votre wilaya</>
         )}

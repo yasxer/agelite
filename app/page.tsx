@@ -142,7 +142,11 @@ export default async function LandingPage() {
               Vous ne payez qu&apos;à la réception de votre colis
             </p>
           </div>
-          <OrderForm price={product.price} />
+          <OrderForm
+            price={product.price}
+            colors={product.colors}
+            sizes={product.sizes}
+          />
         </div>
       </main>
 

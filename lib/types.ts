@@ -6,6 +6,8 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
   { value: "annulee", label: "Annulée" },
 ];
 
+export type ProductColor = { name: string; hex: string };
+
 export type Product = {
   id: string;
   name: string;
@@ -16,6 +18,8 @@ export type Product = {
   delivery_desk: number;
   images: string[];
   features: string[];
+  colors: ProductColor[];
+  sizes: string[];
   updated_at: string;
 };
 
@@ -30,6 +34,8 @@ export type Order = {
   delivery_type: "domicile" | "stopdesk";
   stopdesk_id: number | null;
   stopdesk_name: string | null;
+  color: string | null;
+  size: string | null;
   quantity: number;
   total: number;
   status: OrderStatus;

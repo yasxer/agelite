@@ -192,6 +192,11 @@ export default async function OrdersPage({
                       {o.stopdesk_name && (
                         <p className="mt-0.5 text-xs text-zinc-500">{o.stopdesk_name}</p>
                       )}
+                      {(o.color || o.size) && (
+                        <p className="mt-0.5 text-xs font-medium text-indigo-600">
+                          {[o.color, o.size].filter(Boolean).join(" / ")}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-zinc-700">{o.quantity}</td>
                     <td className="whitespace-nowrap px-4 py-3 font-bold text-zinc-900">
@@ -242,6 +247,8 @@ export default async function OrdersPage({
                       ? "Domicile"
                       : `Stopdesk${o.stopdesk_name ? ` (${o.stopdesk_name})` : ""}`}{" "}
                     — Qté {o.quantity}
+                    {(o.color || o.size) &&
+                      ` — ${[o.color, o.size].filter(Boolean).join(" / ")}`}
                   </span>
                   <span className="font-bold text-zinc-900">
                     {formatDA(Number(o.total))}

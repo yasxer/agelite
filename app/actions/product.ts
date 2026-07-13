@@ -28,6 +28,34 @@ export async function updateProduct(
     .map((f) => f.trim())
     .filter(Boolean);
 
+  // Variantes : couleurs [{name, hex}] et tailles [string]
+  let colors: { name: string; hex: string }[] = [];
+  let sizes: string[] = [];
+  try {
+    const rawColors: unknown = JSON.parse(String(formData.get("colors") || "[]"));
+    const rawSizes: unknown = JSON.parse(String(formData.get("sizes") || "[]"));
+    if (Array.isArray(rawColors)) {
+      colors = rawColors
+        .filter(
+          (c): c is { name: string; hex: string } =>
+            typeof c?.name === "string" &&
+            typeof c?.hex === "string" &&
+            /^#[0-9a-fA-F]{6}$/.test(c.hex) &&
+            c.name.trim().length > 0
+        )
+        .map((c) => ({ name: c.name.trim().slice(0, 40), hex: c.hex }))
+        .slice(0, 30);
+    }
+    if (Array.isArray(rawSizes)) {
+      sizes = rawSizes
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .map((s) => s.trim().slice(0, 20))
+        .slice(0, 30);
+    }
+  } catch {
+    return { error: "Variantes invalides." };
+  }
+
   if (!name) return { error: "Le nom du produit est requis." };
   if (!Number.isFinite(price) || price < 0) return { error: "Prix invalide." };
   if (old_price !== null && (!Number.isFinite(old_price) || old_price < 0))
@@ -54,6 +82,8 @@ export async function updateProduct(
       price,
       old_price,
       features,
+      colors,
+      sizes,
       images,
       updated_at: new Date().toISOString(),
     })

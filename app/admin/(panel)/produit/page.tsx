@@ -99,6 +99,27 @@ export default async function ProductPage({
                 </ul>
               )}
 
+              {(product.colors.length > 0 || product.sizes.length > 0) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {product.colors.map((c) => (
+                    <span
+                      key={c.name}
+                      title={c.name}
+                      className="size-6 rounded-full ring-1 ring-zinc-900/10"
+                      style={{ backgroundColor: c.hex }}
+                    />
+                  ))}
+                  {product.sizes.map((s) => (
+                    <span
+                      key={s}
+                      className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                </div>
+              )}
+
               <div className="mt-auto flex flex-wrap gap-3 border-t border-zinc-100 pt-4 text-xs font-medium text-zinc-500">
                 <span className="inline-flex items-center gap-1.5">
                   <Truck className="size-3.5" />

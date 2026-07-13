@@ -2,9 +2,9 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { ImagePlus, Loader2, Save, X } from "lucide-react";
+import { ImagePlus, Loader2, Plus, Save, X } from "lucide-react";
 import { updateProduct, type ProductFormState } from "@/app/actions/product";
-import type { Product } from "@/lib/types";
+import type { Product, ProductColor } from "@/lib/types";
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-zinc-900 outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20";
@@ -17,6 +17,30 @@ export function ProductForm({ product }: { product: Product }) {
     {}
   );
   const [images, setImages] = useState(product.images);
+
+  // Couleurs disponibles du produit
+  const [colors, setColors] = useState<ProductColor[]>(product.colors);
+  const [newColorName, setNewColorName] = useState("");
+  const [newColorHex, setNewColorHex] = useState("#111111");
+
+  // Tailles disponibles du produit
+  const [sizes, setSizes] = useState<string[]>(product.sizes);
+  const [newSize, setNewSize] = useState("");
+
+  function addColor() {
+    const name = newColorName.trim();
+    if (!name || colors.some((c) => c.name.toLowerCase() === name.toLowerCase()))
+      return;
+    setColors([...colors, { name, hex: newColorHex }]);
+    setNewColorName("");
+  }
+
+  function addSize() {
+    const size = newSize.trim();
+    if (!size || sizes.some((s) => s.toLowerCase() === size.toLowerCase())) return;
+    setSizes([...sizes, size]);
+    setNewSize("");
+  }
 
   return (
     <form
@@ -79,6 +103,119 @@ export function ProductForm({ product }: { product: Product }) {
           className={inputClass}
         />
       </label>
+
+      {/* Couleurs disponibles */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-sm font-medium text-zinc-700">
+          Couleurs disponibles (optionnel — le client devra en choisir une)
+        </span>
+        {colors.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {colors.map((c) => (
+              <span
+                key={c.name}
+                className="flex items-center gap-2 rounded-full bg-zinc-50 py-1.5 pl-2 pr-1.5 text-sm font-medium text-zinc-700 ring-1 ring-zinc-200"
+              >
+                <span
+                  className="size-5 rounded-full ring-1 ring-zinc-900/10"
+                  style={{ backgroundColor: c.hex }}
+                />
+                {c.name}
+                <button
+                  type="button"
+                  onClick={() => setColors(colors.filter((x) => x.name !== c.name))}
+                  aria-label={`Supprimer ${c.name}`}
+                  className="flex size-5 items-center justify-center rounded-full text-zinc-400 transition hover:bg-red-100 hover:text-red-600"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <label className="relative flex size-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl ring-1 ring-zinc-200">
+            <input
+              type="color"
+              value={newColorHex}
+              onChange={(e) => setNewColorHex(e.target.value)}
+              className="absolute -inset-2 size-14 cursor-pointer border-0 p-0"
+              aria-label="Choisir la couleur"
+            />
+          </label>
+          <input
+            value={newColorName}
+            onChange={(e) => setNewColorName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addColor();
+              }
+            }}
+            placeholder="Nom (ex: Noir, Or, Bleu roi...)"
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={addColor}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+          >
+            <Plus className="size-4" />
+            Ajouter
+          </button>
+        </div>
+        <input type="hidden" name="colors" value={JSON.stringify(colors)} />
+      </div>
+
+      {/* Tailles disponibles */}
+      <div className="flex flex-col gap-2.5">
+        <span className="text-sm font-medium text-zinc-700">
+          Tailles disponibles (optionnel — ex: S, M, L ou 40, 41, 42)
+        </span>
+        {sizes.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {sizes.map((s) => (
+              <span
+                key={s}
+                className="flex items-center gap-1.5 rounded-full bg-zinc-50 py-1.5 pl-3 pr-1.5 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-200"
+              >
+                {s}
+                <button
+                  type="button"
+                  onClick={() => setSizes(sizes.filter((x) => x !== s))}
+                  aria-label={`Supprimer ${s}`}
+                  className="flex size-5 items-center justify-center rounded-full text-zinc-400 transition hover:bg-red-100 hover:text-red-600"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            value={newSize}
+            onChange={(e) => setNewSize(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addSize();
+              }
+            }}
+            placeholder="Taille (ex: M)"
+            className={inputClass}
+          />
+          <button
+            type="button"
+            onClick={addSize}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-700"
+          >
+            <Plus className="size-4" />
+            Ajouter
+          </button>
+        </div>
+        <input type="hidden" name="sizes" value={JSON.stringify(sizes)} />
+      </div>
 
       {/* Images */}
       <div className="flex flex-col gap-2.5">
