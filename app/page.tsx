@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { ArrowDown, BadgeCheck, Banknote, PackageOpen, Truck } from "lucide-react";
 import { getProduct, getSettings } from "@/lib/data";
 import { Gallery } from "./components/gallery";
 import { OrderForm } from "./components/order-form";
 
-export const dynamic = "force-dynamic";
+// Page servie depuis le cache CDN (rapide même en 2G). Elle est régénérée
+// immédiatement quand le produit ou les settings changent (revalidatePath),
+// avec un filet de sécurité de 5 minutes.
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const [settings, product] = await Promise.all([getSettings(), getProduct()]);
@@ -56,10 +60,11 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-40 border-b border-zinc-200/50 bg-white/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-[420px] items-center justify-center gap-3 px-4">
           {settings.logo_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               src={settings.logo_url}
               alt={settings.store_name}
+              width={36}
+              height={36}
               className="size-9 rounded-xl object-contain"
             />
           ) : (
@@ -154,10 +159,11 @@ export default async function LandingPage() {
         <div className="flex flex-col items-center gap-1.5">
           <div className="flex items-center gap-2">
             {settings.logo_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={settings.logo_url}
                 alt=""
+                width={24}
+                height={24}
                 className="size-6 rounded-md object-contain"
               />
             ) : (

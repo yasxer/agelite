@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { ChevronLeft, ChevronRight, ImageOff, X, ZoomIn } from "lucide-react";
 
 export function Gallery({ images, alt }: { images: string[]; alt: string }) {
@@ -64,14 +65,17 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
           <button
             type="button"
             onClick={() => setZoomed(true)}
-            className="block w-full cursor-zoom-in"
+            className="relative block aspect-square w-full cursor-zoom-in"
             aria-label="Agrandir l'image"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            {/* La page fait max 420px de large : on ne télécharge jamais plus */}
+            <Image
               src={images[active]}
               alt={alt}
-              className="aspect-square w-full object-cover"
+              fill
+              sizes="(max-width: 420px) 100vw, 420px"
+              priority
+              className="object-cover"
             />
           </button>
 
@@ -115,7 +119,7 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
           )}
         </div>
 
-        {/* Miniatures */}
+        {/* Miniatures (64px, chargées en différé) */}
         {count > 1 && (
           <div className="flex gap-2.5 overflow-x-auto pb-1">
             {images.map((src, i) => (
@@ -124,14 +128,20 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
                 type="button"
                 onClick={() => setActive(i)}
                 aria-label={`Image ${i + 1}`}
-                className={`shrink-0 overflow-hidden rounded-xl ring-2 transition ${
+                className={`relative size-16 shrink-0 overflow-hidden rounded-xl ring-2 transition ${
                   i === active
                     ? "ring-(--primary) shadow-md"
                     : "ring-transparent opacity-60 hover:opacity-100"
                 }`}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt="" className="size-16 object-cover" />
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="64px"
+                  loading="lazy"
+                  className="object-cover"
+                />
               </button>
             ))}
           </div>
@@ -155,13 +165,18 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
             <X className="size-6" />
           </button>
 
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={images[active]}
-            alt={alt}
+          <div
+            className="relative h-[85vh] w-[92vw]"
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[85vh] max-w-[92vw] rounded-2xl object-contain shadow-2xl"
-          />
+          >
+            <Image
+              src={images[active]}
+              alt={alt}
+              fill
+              sizes="92vw"
+              className="rounded-2xl object-contain"
+            />
+          </div>
 
           {count > 1 && (
             <>
