@@ -23,12 +23,16 @@ export async function updateSettings(
   const store_name = String(formData.get("store_name") || "").trim();
   const primary_color = String(formData.get("primary_color") || "").trim();
   const from_wilaya = String(formData.get("from_wilaya") || "");
+  const pixelRaw = String(formData.get("pixel_id") || "").trim();
+  const pixel_id = pixelRaw || null;
 
   if (!store_name) return { error: "Le nom de la boutique est requis." };
   if (!COLOR_RE.test(primary_color))
     return { error: "Couleur invalide (format #rrggbb)." };
   if (!WILAYAS.includes(from_wilaya))
     return { error: "Wilaya d'expédition invalide." };
+  if (pixel_id && !/^\d{10,20}$/.test(pixel_id))
+    return { error: "Pixel ID invalide (uniquement des chiffres, ex: 123456789012345)." };
 
   let logo_url = settings.logo_url;
   const removeLogo = formData.get("remove_logo") === "1";
@@ -49,6 +53,7 @@ export async function updateSettings(
       store_name,
       primary_color,
       from_wilaya,
+      pixel_id,
       logo_url,
       updated_at: new Date().toISOString(),
     })

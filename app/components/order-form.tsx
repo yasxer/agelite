@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -40,6 +40,21 @@ function formatDA(n: number) {
 // Cache côté navigateur : re-sélectionner une wilaya déjà chargée est instantané
 const deliveryCache = new Map<string, DeliveryData>();
 
+// Meta Pixel (injecté par MetaPixel si configuré dans les settings)
+declare global {
+  interface Window {
+    fbq?: (...args: unknown[]) => void;
+  }
+}
+
+function trackPixel(event: string, data?: Record<string, unknown>) {
+  try {
+    window.fbq?.("track", event, data);
+  } catch {
+    // le pixel ne doit jamais casser le formulaire
+  }
+}
+
 export function OrderForm({
   price,
   colors,
@@ -62,6 +77,15 @@ export function OrderForm({
   const [loadingFees, setLoadingFees] = useState(false);
   const [stopdeskId, setStopdeskId] = useState<number | null>(null);
   const requestSeq = useRef(0);
+  const checkoutTracked = useRef(false);
+  const lastTotal = useRef(0);
+
+  // Purchase envoyé au Pixel une fois la commande enregistrée
+  useEffect(() => {
+    if (state.success) {
+      trackPixel("Purchase", { value: lastTotal.current, currency: "DZD" });
+    }
+  }, [state.success]);
 
   // Tarifs + bureaux chargés depuis Yalidine à chaque changement de wilaya
   function handleWilayaChange(value: string) {
@@ -135,6 +159,16 @@ export function OrderForm({
   return (
     <form
       action={action}
+      onSubmit={() => {
+        lastTotal.current = total;
+      }}
+      onFocusCapture={() => {
+        // InitiateCheckout : première interaction avec le formulaire
+        if (!checkoutTracked.current) {
+          checkoutTracked.current = true;
+          trackPixel("InitiateCheckout", { value: price, currency: "DZD" });
+        }
+      }}
       className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-zinc-200/60 sm:p-8"
     >
       <h3 className="text-xl font-bold text-zinc-900">

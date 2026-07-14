@@ -51,5 +51,6 @@ export type Settings = {
   logo_url: string | null;
   primary_color: string;
   from_wilaya: string;
+  pixel_id: string | null;
   updated_at: string;
 };

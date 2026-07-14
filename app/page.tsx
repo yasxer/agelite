@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ArrowDown, BadgeCheck, Banknote, PackageOpen, Truck } from "lucide-react";
 import { getProduct, getSettings } from "@/lib/data";
 import { Gallery } from "./components/gallery";
+import { MetaPixel } from "./components/meta-pixel";
 import { OrderForm } from "./components/order-form";
 
 // Page servie depuis le cache CDN (rapide même en 2G). Elle est régénérée
@@ -46,6 +47,8 @@ export default async function LandingPage() {
       style={{ "--primary": settings.primary_color } as React.CSSProperties}
       className="relative min-h-screen overflow-x-clip bg-zinc-50 text-zinc-900"
     >
+      {settings.pixel_id && <MetaPixel pixelId={settings.pixel_id} />}
+
       {/* Halos de couleur en arrière-plan */}
       <div
         aria-hidden="true"

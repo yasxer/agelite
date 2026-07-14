@@ -32,6 +32,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   // Texte du champ hex : peut être temporairement invalide pendant la saisie
   const [hexInput, setHexInput] = useState(settings.primary_color);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [pixelId, setPixelId] = useState(settings.pixel_id ?? "");
 
   function applyColor(value: string) {
     setColor(value);
@@ -163,6 +164,35 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           </span>
         </div>
       </div>
+
+      <label className={labelClass}>
+        Meta Pixel ID (Facebook) — optionnel
+        <div className="flex items-center gap-2">
+          <input
+            name="pixel_id"
+            value={pixelId}
+            onChange={(e) => setPixelId(e.target.value.replace(/\D/g, ""))}
+            placeholder="123456789012345"
+            inputMode="numeric"
+            className={inputClass}
+          />
+          {pixelId && (
+            <button
+              type="button"
+              onClick={() => setPixelId("")}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="size-4" />
+              Retirer
+            </button>
+          )}
+        </div>
+        <span className="text-xs font-normal text-zinc-400">
+          Meta Business Suite → Gestionnaire d&apos;événements → votre Pixel → l&apos;ID
+          numérique. Videz le champ (ou cliquez Retirer) puis Enregistrer pour
+          désactiver complètement le pixel sur la landing page.
+        </span>
+      </label>
 
       <label className={labelClass}>
         Wilaya d&apos;expédition (adresse de départ pour Yalidine)

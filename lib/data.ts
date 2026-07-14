@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS: Omit<Settings, "id" | "updated_at"> = {
   logo_url: null,
   primary_color: "#4f46e5",
   from_wilaya: "16 - Alger",
+  pixel_id: null,
 };
 
 export async function getProduct(): Promise<Product | null> {
