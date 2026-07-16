@@ -52,5 +52,6 @@ export type Settings = {
   primary_color: string;
   from_wilaya: string;
   pixel_id: string | null;
+  fb_domain_verification: string | null;
   updated_at: string;
 };

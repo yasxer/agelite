@@ -33,6 +33,9 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   const [hexInput, setHexInput] = useState(settings.primary_color);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [pixelId, setPixelId] = useState(settings.pixel_id ?? "");
+  const [fbDomainVerification, setFbDomainVerification] = useState(
+    settings.fb_domain_verification ?? ""
+  );
 
   function applyColor(value: string) {
     setColor(value);
@@ -191,6 +194,38 @@ export function SettingsForm({ settings }: { settings: Settings }) {
           Meta Business Suite → Gestionnaire d&apos;événements → votre Pixel → l&apos;ID
           numérique. Videz le champ (ou cliquez Retirer) puis Enregistrer pour
           désactiver complètement le pixel sur la landing page.
+        </span>
+      </label>
+
+      <label className={labelClass}>
+        Vérification de domaine Facebook — optionnel
+        <div className="flex items-center gap-2">
+          <input
+            name="fb_domain_verification"
+            value={fbDomainVerification}
+            onChange={(e) => setFbDomainVerification(e.target.value.trim())}
+            placeholder="ex: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+            spellCheck={false}
+            className={inputClass}
+          />
+          {fbDomainVerification && (
+            <button
+              type="button"
+              onClick={() => setFbDomainVerification("")}
+              className="flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+            >
+              <Trash2 className="size-4" />
+              Retirer
+            </button>
+          )}
+        </div>
+        <span className="text-xs font-normal text-zinc-400">
+          Meta Business Suite → Paramètres → Sécurité de la marque → Domaines →
+          Ajouter votre domaine (ex : agelite.vercel.app) → choisissez
+          &laquo;&nbsp;Vérification par balise meta&nbsp;&raquo; → collez ici uniquement le
+          code dans <code>content=&quot;...&quot;</code> (pas toute la balise). Nécessaire
+          pour que Facebook associe correctement le Pixel à ce site lors de la
+          création d&apos;une campagne.
         </span>
       </label>
 

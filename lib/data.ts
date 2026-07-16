@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: Omit<Settings, "id" | "updated_at"> = {
   primary_color: "#4f46e5",
   from_wilaya: "16 - Alger",
   pixel_id: null,
+  fb_domain_verification: null,
 };
 
 export async function getProduct(): Promise<Product | null> {

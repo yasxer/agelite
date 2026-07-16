@@ -54,6 +54,7 @@ create table if not exists public.settings (
   primary_color text not null default '#4f46e5',
   from_wilaya text not null default '16 - Alger',
   pixel_id text,   -- Meta Pixel ID (Facebook), optionnel
+  fb_domain_verification text,   -- Meta Domain Verification (balise meta), optionnel
   updated_at timestamptz not null default now()
 );
 

@@ -25,6 +25,8 @@ export async function updateSettings(
   const from_wilaya = String(formData.get("from_wilaya") || "");
   const pixelRaw = String(formData.get("pixel_id") || "").trim();
   const pixel_id = pixelRaw || null;
+  const fbDomainRaw = String(formData.get("fb_domain_verification") || "").trim();
+  const fb_domain_verification = fbDomainRaw || null;
 
   if (!store_name) return { error: "Le nom de la boutique est requis." };
   if (!COLOR_RE.test(primary_color))
@@ -33,6 +35,8 @@ export async function updateSettings(
     return { error: "Wilaya d'expédition invalide." };
   if (pixel_id && !/^\d{10,20}$/.test(pixel_id))
     return { error: "Pixel ID invalide (uniquement des chiffres, ex: 123456789012345)." };
+  if (fb_domain_verification && !/^[a-z0-9]{10,100}$/i.test(fb_domain_verification))
+    return { error: "Code de vérification de domaine invalide." };
 
   let logo_url = settings.logo_url;
   const removeLogo = formData.get("remove_logo") === "1";
@@ -54,6 +58,7 @@ export async function updateSettings(
       primary_color,
       from_wilaya,
       pixel_id,
+      fb_domain_verification,
       logo_url,
       updated_at: new Date().toISOString(),
     })

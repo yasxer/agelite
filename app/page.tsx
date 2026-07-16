@@ -16,6 +16,9 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: product ? `${product.name} | ${settings.store_name}` : settings.store_name,
     description: product?.description.slice(0, 160) || settings.store_name,
+    verification: settings.fb_domain_verification
+      ? { other: { "facebook-domain-verification": settings.fb_domain_verification } }
+      : undefined,
   };
 }
 
