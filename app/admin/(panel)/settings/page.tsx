@@ -17,7 +17,9 @@ export default async function SettingsPage() {
           landing page.
         </p>
       </div>
-      <SettingsForm settings={settings} />
+      {/* La clé remonte le formulaire après un enregistrement réussi :
+          l'aperçu du logo et les champs repartent des valeurs du serveur. */}
+      <SettingsForm key={settings.updated_at} settings={settings} />
     </div>
   );
 }

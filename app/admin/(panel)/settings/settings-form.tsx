@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Save, Trash2 } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { CheckCircle2, ImagePlus, Loader2, Save, Trash2, X } from "lucide-react";
 import { updateSettings, type SettingsFormState } from "@/app/actions/settings";
 import type { Settings } from "@/lib/types";
 import { WILAYAS } from "@/lib/wilayas";
@@ -32,10 +32,30 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   // Texte du champ hex : peut être temporairement invalide pendant la saisie
   const [hexInput, setHexInput] = useState(settings.primary_color);
   const [removeLogo, setRemoveLogo] = useState(false);
+  // Aperçu local du logo choisi : visible avant tout envoi au serveur
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [pixelId, setPixelId] = useState(settings.pixel_id ?? "");
   const [fbDomainVerification, setFbDomainVerification] = useState(
     settings.fb_domain_verification ?? ""
   );
+
+  // L'URL objet est libérée dès qu'elle est remplacée ou que l'aperçu disparaît
+  useEffect(() => {
+    if (!logoPreview) return;
+    return () => URL.revokeObjectURL(logoPreview);
+  }, [logoPreview]);
+
+  function handleLogoChange(file: File | undefined) {
+    setLogoPreview(file ? URL.createObjectURL(file) : null);
+    // Choisir une image annule une demande de retrait en cours
+    if (file) setRemoveLogo(false);
+  }
+
+  function clearLogoChoice() {
+    setLogoPreview(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  }
 
   function applyColor(value: string) {
     setColor(value);
@@ -67,32 +87,100 @@ export function SettingsForm({ settings }: { settings: Settings }) {
       {/* Logo */}
       <div className="flex flex-col gap-2.5">
         <span className="text-sm font-medium text-zinc-700">Logo</span>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-start gap-4">
           {settings.logo_url && !removeLogo && (
-            <div className="flex items-center gap-2">
+            <figure className="flex flex-col items-center gap-1.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={settings.logo_url}
                 alt="Logo actuel"
-                className="size-16 rounded-xl object-contain ring-1 ring-zinc-200"
+                className={`size-16 rounded-xl object-contain ring-1 ring-zinc-200 transition ${
+                  logoPreview ? "opacity-40" : ""
+                }`}
               />
+              <figcaption className="text-[11px] font-medium text-zinc-400">
+                Actuel
+              </figcaption>
+            </figure>
+          )}
+
+          {/* Aperçu du fichier choisi, avant tout envoi au serveur */}
+          {logoPreview && (
+            <figure className="flex flex-col items-center gap-1.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoPreview}
+                alt="Aperçu du nouveau logo"
+                className="size-16 rounded-xl object-contain ring-2 ring-indigo-400"
+              />
+              <figcaption className="text-[11px] font-semibold text-indigo-600">
+                Nouveau
+              </figcaption>
+            </figure>
+          )}
+
+          {removeLogo && <input type="hidden" name="remove_logo" value="1" />}
+
+          <div className="flex flex-col items-start gap-1.5">
+            <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition hover:border-indigo-400 hover:text-indigo-500">
+              <ImagePlus className="size-5" />
+              {logoPreview
+                ? "Choisir une autre image"
+                : settings.logo_url && !removeLogo
+                  ? "Remplacer le logo"
+                  : "Choisir un logo"}
+              <input
+                ref={logoInputRef}
+                type="file"
+                name="logo"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleLogoChange(e.target.files?.[0])}
+              />
+            </label>
+
+            {logoPreview ? (
               <button
                 type="button"
-                onClick={() => setRemoveLogo(true)}
-                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                onClick={clearLogoChoice}
+                className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-500 transition hover:bg-zinc-100"
               >
-                <Trash2 className="size-3.5" />
-                Retirer
+                <X className="size-3.5" />
+                Annuler ce choix
               </button>
-            </div>
-          )}
-          {removeLogo && <input type="hidden" name="remove_logo" value="1" />}
-          <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition hover:border-indigo-400 hover:text-indigo-500">
-            <ImagePlus className="size-5" />
-            {settings.logo_url && !removeLogo ? "Remplacer le logo" : "Choisir un logo"}
-            <input type="file" name="logo" accept="image/*" className="hidden" />
-          </label>
+            ) : (
+              settings.logo_url &&
+              !removeLogo && (
+                <button
+                  type="button"
+                  onClick={() => setRemoveLogo(true)}
+                  className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50"
+                >
+                  <Trash2 className="size-3.5" />
+                  Retirer le logo
+                </button>
+              )
+            )}
+          </div>
         </div>
+
+        {logoPreview && (
+          <p className="text-xs text-zinc-400">
+            Aperçu local — l&apos;image ne sera envoyée qu&apos;à l&apos;enregistrement.
+          </p>
+        )}
+        {removeLogo && (
+          <p className="flex flex-wrap items-center gap-2 text-xs text-red-500">
+            Le logo sera retiré à l&apos;enregistrement.
+            <button
+              type="button"
+              onClick={() => setRemoveLogo(false)}
+              className="font-semibold text-zinc-500 underline underline-offset-2 hover:text-zinc-700"
+            >
+              Annuler
+            </button>
+          </p>
+        )}
       </div>
 
       {/* Couleur */}

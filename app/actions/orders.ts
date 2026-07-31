@@ -26,31 +26,30 @@ export async function createOrder(
   const customer_name = String(formData.get("customer_name") || "").trim();
   const phone = String(formData.get("phone") || "").replace(/[\s.-]/g, "");
   const wilaya = String(formData.get("wilaya") || "");
-  const commune = String(formData.get("commune") || "").trim();
   const address = String(formData.get("address") || "").trim();
   const delivery_type =
     formData.get("delivery_type") === "stopdesk" ? "stopdesk" : "domicile";
   const stopdeskId = Number(formData.get("stopdesk_id")) || null;
   const quantity = Math.min(Math.max(Number(formData.get("quantity")) || 1, 1), 20);
 
-  if (customer_name.length < 3) return { error: "Veuillez entrer votre nom complet." };
+  if (customer_name.length < 3) return { error: "الرجاء إدخال اسمكم الكامل." };
   if (!PHONE_RE.test(phone))
-    return { error: "Numéro de téléphone invalide (ex: 0550123456)." };
-  if (!WILAYAS.includes(wilaya)) return { error: "Veuillez choisir votre wilaya." };
+    return { error: "رقم الهاتف غير صحيح (مثال: 0550123456)." };
+  if (!WILAYAS.includes(wilaya)) return { error: "الرجاء اختيار ولايتكم." };
   if (delivery_type === "domicile" && address.length < 5)
-    return { error: "Veuillez entrer votre adresse de livraison." };
+    return { error: "الرجاء إدخال عنوان التوصيل." };
 
   const [product, settings] = await Promise.all([getProduct(), getSettings()]);
-  if (!product) return { error: "Produit indisponible pour le moment." };
+  if (!product) return { error: "المنتج غير متوفر حاليا." };
 
   // Variantes : obligatoires si le produit en définit
   const color = String(formData.get("color") || "").trim() || null;
   const size = String(formData.get("size") || "").trim() || null;
   if (product.colors.length > 0 && !product.colors.some((c) => c.name === color)) {
-    return { error: "Veuillez choisir une couleur." };
+    return { error: "الرجاء اختيار لون." };
   }
   if (product.sizes.length > 0 && !product.sizes.includes(size ?? "")) {
-    return { error: "Veuillez choisir une taille." };
+    return { error: "الرجاء اختيار مقاس." };
   }
 
   // Tarifs et bureaux recalculés côté serveur depuis Yalidine
@@ -59,24 +58,25 @@ export async function createOrder(
   if (info.homeFee === null) {
     return {
       error:
-        "Les tarifs de livraison sont momentanément indisponibles. Veuillez réessayer dans un instant.",
+        "أسعار التوصيل غير متوفرة حاليا. الرجاء إعادة المحاولة بعد قليل.",
     };
   }
 
   let delivery: number;
   let stopdesk_name: string | null = null;
   let stopdesk_id: number | null = null;
-  let finalCommune = commune;
+  // Pas de champ "commune" séparé : on réutilise l'adresse saisie par le client
+  // (Yalidine a besoin d'un nom de commune pour créer le colis à domicile)
+  let finalCommune = address;
 
   if (delivery_type === "stopdesk") {
     const center = info.centers.find((c) => c.id === stopdeskId);
-    if (!center) return { error: "Veuillez choisir un bureau de livraison." };
+    if (!center) return { error: "الرجاء اختيار مكتب التوصيل." };
     stopdesk_id = center.id;
     stopdesk_name = center.name;
     finalCommune = center.commune;
     delivery = center.fee ?? info.deskFee ?? info.homeFee;
   } else {
-    if (finalCommune.length < 2) return { error: "Veuillez entrer votre commune." };
     delivery = info.homeFee;
   }
 
@@ -193,6 +193,35 @@ export async function cancelOrder(orderId: string): Promise<OrderActionState> {
       yalidine_status: null,
     })
     .eq("id", orderId);
+
+  revalidatePath("/admin/commandes");
+  revalidatePath("/admin");
+  return {};
+}
+
+/**
+ * Supprime définitivement la commande de la base (action irréversible).
+ * Si un colis Yalidine existe encore, il est supprimé chez Yalidine d'abord :
+ * sans cela on laisserait un colis en circulation sans aucune trace côté
+ * boutique. Si Yalidine refuse (colis déjà ramassé), rien n'est supprimé.
+ */
+export async function deleteOrder(orderId: string): Promise<OrderActionState> {
+  await requireAdmin();
+
+  const order = await getOrder(orderId);
+  if (!order) return { error: "Commande introuvable." };
+
+  if (order.yalidine_tracking) {
+    const result = await deleteParcel(order.yalidine_tracking);
+    if (!result.ok) {
+      return {
+        error: `${result.error} Annulez le colis depuis votre compte Yalidine d'abord.`,
+      };
+    }
+  }
+
+  const { error } = await supabase().from("orders").delete().eq("id", orderId);
+  if (error) return { error: "Suppression impossible, veuillez réessayer." };
 
   revalidatePath("/admin/commandes");
   revalidatePath("/admin");

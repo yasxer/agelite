@@ -140,14 +140,17 @@ export function OrderForm({
 
   if (state.success) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl ring-1 ring-zinc-200/60">
+      <div
+        dir="rtl"
+        lang="ar"
+        className="flex flex-col items-center gap-4 rounded-3xl bg-white p-10 text-center shadow-xl ring-1 ring-zinc-200/60"
+      >
         <span className="flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
           <CheckCircle2 className="size-9" />
         </span>
-        <h3 className="text-2xl font-bold text-zinc-900">Commande reçue !</h3>
+        <h3 className="text-2xl font-bold text-zinc-900">تم استلام طلبكم!</h3>
         <p className="max-w-sm text-zinc-600">
-          Merci pour votre confiance. Notre équipe vous appellera très bientôt
-          pour confirmer votre commande.
+          شكرا على ثقتكم. سيتصل بكم فريقنا في أقرب وقت لتأكيد طلبكم.
         </p>
       </div>
     );
@@ -158,6 +161,8 @@ export function OrderForm({
 
   return (
     <form
+      dir="rtl"
+      lang="ar"
       action={action}
       onSubmit={() => {
         lastTotal.current = total;
@@ -172,7 +177,7 @@ export function OrderForm({
       className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-xl ring-1 ring-zinc-200/60 sm:p-8"
     >
       <h3 className="text-xl font-bold text-zinc-900">
-        Commandez maintenant — paiement à la livraison
+        اطلب الآن — الدفع عند الاستلام
       </h3>
 
       {/* Anti-bot, invisible */}
@@ -189,11 +194,11 @@ export function OrderForm({
       {colors.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-sm font-semibold text-zinc-700">
-            Couleur{" "}
+            اللون{" "}
             {selectedColor ? (
               <span className="font-normal text-zinc-500">— {selectedColor}</span>
             ) : (
-              <span className="font-normal text-zinc-400">(choisissez)</span>
+              <span className="font-normal text-zinc-400">(اختر)</span>
             )}
           </span>
           <div className="flex flex-wrap gap-2.5">
@@ -203,7 +208,7 @@ export function OrderForm({
                 type="button"
                 onClick={() => setSelectedColor(c.name)}
                 title={c.name}
-                aria-label={`Couleur ${c.name}`}
+                aria-label={`اللون ${c.name}`}
                 className={`size-10 rounded-full ring-2 ring-offset-2 transition ${
                   selectedColor === c.name
                     ? "ring-(--primary) scale-110"
@@ -220,7 +225,7 @@ export function OrderForm({
       {/* Choix de la taille */}
       {sizes.length > 0 && (
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-semibold text-zinc-700">Taille</span>
+          <span className="text-sm font-semibold text-zinc-700">المقاس</span>
           <div className="flex flex-wrap gap-2">
             {sizes.map((s) => (
               <button
@@ -242,24 +247,24 @@ export function OrderForm({
       )}
 
       <div className="relative">
-        <User className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
+        <User className="pointer-events-none absolute start-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
         <input
           name="customer_name"
           required
-          placeholder="Nom et prénom"
-          className={`${inputClass} pl-11`}
+          placeholder="الاسم و اللقب"
+          className={`${inputClass} ps-11`}
         />
       </div>
 
       <div className="relative">
-        <Phone className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
+        <Phone className="pointer-events-none absolute start-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
         <input
           name="phone"
           required
           type="tel"
           inputMode="tel"
-          placeholder="Téléphone (ex: 0550123456)"
-          className={`${inputClass} pl-11`}
+          placeholder="رقم الهاتف (مثال: 0550123456)"
+          className={`${inputClass} ps-11`}
         />
       </div>
 
@@ -271,7 +276,7 @@ export function OrderForm({
         className={inputClass}
       >
         <option value="" disabled>
-          Choisissez votre wilaya
+          اختر ولايتك
         </option>
         {WILAYAS.map((w) => (
           <option key={w} value={w}>
@@ -283,8 +288,8 @@ export function OrderForm({
       {feesError && (
         <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          Impossible de charger les tarifs de livraison. Vérifiez votre connexion
-          puis re-sélectionnez votre wilaya.
+          تعذر تحميل أسعار التوصيل. تحقق من اتصالك بالأنترنت ثم أعد اختيار
+          الولاية.
         </p>
       )}
 
@@ -294,14 +299,14 @@ export function OrderForm({
           [
             {
               value: "domicile",
-              label: "À domicile",
+              label: "توصيل للمنزل",
               icon: Home,
               optionFee: delivery?.homeFee ?? null,
               disabled: false,
             },
             {
               value: "stopdesk",
-              label: "Bureau (Stopdesk)",
+              label: "مكتب التوصيل (Stopdesk)",
               icon: Store,
               optionFee: delivery?.deskFee ?? null,
               disabled: Boolean(delivery) && !stopdeskAvailable,
@@ -353,7 +358,7 @@ export function OrderForm({
             className={inputClass}
           >
             <option value="" disabled>
-              Choisissez votre bureau de livraison
+              اختر مكتب التوصيل
             </option>
             {centers.map((c) => (
               <option key={c.id} value={c.id}>
@@ -370,36 +375,28 @@ export function OrderForm({
         </div>
       )}
 
-      {/* Commune : saisie manuelle pour la livraison à domicile */}
+      {/* Adresse : saisie manuelle pour la livraison à domicile (commune incluse) */}
       {deliveryType === "domicile" && (
-        <>
+        <div className="relative">
+          <MapPin className="pointer-events-none absolute start-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
           <input
-            name="commune"
+            name="address"
             required
-            placeholder="Commune"
-            className={inputClass}
+            placeholder="العنوان الكامل (البلدية، الحي...)"
+            className={`${inputClass} ps-11`}
           />
-          <div className="relative">
-            <MapPin className="pointer-events-none absolute left-4 top-1/2 size-4.5 -translate-y-1/2 text-zinc-400" />
-            <input
-              name="address"
-              required
-              placeholder="Adresse complète"
-              className={`${inputClass} pl-11`}
-            />
-          </div>
-        </>
+        </div>
       )}
 
       {/* Quantité */}
       <div className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3">
-        <span className="text-sm font-medium text-zinc-700">Quantité</span>
+        <span className="text-sm font-medium text-zinc-700">الكمية</span>
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
             className="flex size-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 transition hover:bg-zinc-200"
-            aria-label="Diminuer"
+            aria-label="إنقاص"
           >
             <Minus className="size-4" />
           </button>
@@ -408,7 +405,7 @@ export function OrderForm({
             type="button"
             onClick={() => setQuantity((q) => Math.min(20, q + 1))}
             className="flex size-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 transition hover:bg-zinc-200"
-            aria-label="Augmenter"
+            aria-label="زيادة"
           >
             <Plus className="size-4" />
           </button>
@@ -419,21 +416,21 @@ export function OrderForm({
       {/* Récap */}
       <div className="flex flex-col gap-1.5 rounded-xl bg-zinc-50 p-4 text-sm">
         <div className="flex justify-between text-zinc-600">
-          <span>Produit × {quantity}</span>
+          <span>المنتج × {quantity}</span>
           <span>{formatDA(price * quantity)}</span>
         </div>
         <div className="flex justify-between text-zinc-600">
-          <span>Livraison</span>
+          <span>التوصيل</span>
           <span>
             {loadingFees
               ? "..."
               : fee !== null
                 ? formatDA(fee)
-                : "choisissez une wilaya"}
+                : "اختر ولاية"}
           </span>
         </div>
         <div className="mt-1 flex justify-between border-t border-zinc-200 pt-2 text-base font-bold text-zinc-900">
-          <span>Total</span>
+          <span>المجموع</span>
           <span className="text-(--primary)">
             {fee !== null ? formatDA(total) : formatDA(price * quantity)}
           </span>
@@ -454,22 +451,22 @@ export function OrderForm({
         {pending ? (
           <>
             <Loader2 className="size-5 animate-spin" />
-            Envoi en cours...
+            جاري الإرسال...
           </>
         ) : ready ? (
-          <>Confirmer ma commande — {formatDA(total)}</>
+          <>تأكيد الطلب — {formatDA(total)}</>
         ) : !variantsOk ? (
           <>
             {colors.length > 0 && selectedColor === null
-              ? "Choisissez une couleur"
-              : "Choisissez une taille"}
+              ? "اختر لونا"
+              : "اختر مقاسا"}
           </>
         ) : (
-          <>Choisissez votre wilaya</>
+          <>اختر ولايتك</>
         )}
       </button>
       <p className="text-center text-xs text-zinc-400">
-        Vous ne payez rien maintenant. Paiement en espèces à la réception.
+        لن تدفعوا أي شيء الآن. الدفع نقدا عند الاستلام.
       </p>
     </form>
   );
