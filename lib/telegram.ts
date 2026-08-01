@@ -26,8 +26,12 @@ function esc(text: string): string {
  */
 export async function notifyNewOrder(order: OrderNotification): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) return;
+  // Plusieurs destinataires possibles : ids séparés par des virgules
+  const chatIds = (process.env.TELEGRAM_CHAT_ID ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+  if (!token || chatIds.length === 0) return;
 
   const lieu =
     order.delivery_type === "stopdesk"
@@ -48,13 +52,15 @@ export async function notifyNewOrder(order: OrderNotification): Promise<void> {
     `<b>Total :</b> ${order.total.toLocaleString("fr-DZ")} DA`,
   ].join("\n");
 
-  try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
-    });
-  } catch {
-    // La notification ne doit jamais faire échouer la commande
-  }
+  // allSettled : un destinataire injoignable n'empêche pas les autres d'être
+  // prévenus, et la notification ne doit jamais faire échouer la commande.
+  await Promise.allSettled(
+    chatIds.map((chat_id) =>
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_id, text, parse_mode: "HTML" }),
+      })
+    )
+  );
 }
