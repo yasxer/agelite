@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { deleteImages, uploadImage } from "@/lib/storage";
 import { getSettings, invalidateSettingsCache } from "@/lib/data";
 import { WILAYAS } from "@/lib/wilayas";
+import { FREE_DELIVERY_MODES, type FreeDeliveryMode } from "@/lib/types";
 import { requireAdmin } from "./auth";
 
 export type SettingsFormState = { success?: boolean; error?: string };
@@ -27,12 +28,17 @@ export async function updateSettings(
   const pixel_id = pixelRaw || null;
   const fbDomainRaw = String(formData.get("fb_domain_verification") || "").trim();
   const fb_domain_verification = fbDomainRaw || null;
+  const free_delivery_mode = String(
+    formData.get("free_delivery_mode") || "none"
+  ) as FreeDeliveryMode;
 
   if (!store_name) return { error: "Le nom de la boutique est requis." };
   if (!COLOR_RE.test(primary_color))
     return { error: "Couleur invalide (format #rrggbb)." };
   if (!WILAYAS.includes(from_wilaya))
     return { error: "Wilaya d'expédition invalide." };
+  if (!FREE_DELIVERY_MODES.includes(free_delivery_mode))
+    return { error: "Mode de livraison offerte invalide." };
   if (pixel_id && !/^\d{10,20}$/.test(pixel_id))
     return { error: "Pixel ID invalide (uniquement des chiffres, ex: 123456789012345)." };
   if (fb_domain_verification && !/^[a-z0-9]{10,100}$/i.test(fb_domain_verification))
@@ -59,6 +65,7 @@ export async function updateSettings(
       from_wilaya,
       pixel_id,
       fb_domain_verification,
+      free_delivery_mode,
       logo_url,
       updated_at: new Date().toISOString(),
     })

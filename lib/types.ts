@@ -8,6 +8,16 @@ export const ORDER_STATUSES: { value: OrderStatus; label: string }[] = [
 
 export type ProductColor = { name: string; hex: string };
 
+/**
+ * Portée de la livraison offerte :
+ * - "none"     : le client paie les frais Yalidine
+ * - "stopdesk" : le bureau est offert, le domicile reste payant
+ * - "all"      : tout est offert, la commande part toujours à domicile
+ */
+export type FreeDeliveryMode = "none" | "all" | "stopdesk";
+
+export const FREE_DELIVERY_MODES: FreeDeliveryMode[] = ["none", "all", "stopdesk"];
+
 export type Product = {
   id: string;
   name: string;
@@ -53,5 +63,7 @@ export type Settings = {
   from_wilaya: string;
   pixel_id: string | null;
   fb_domain_verification: string | null;
+  /** Livraison offerte au client : la boutique absorbe les frais Yalidine. */
+  free_delivery_mode: FreeDeliveryMode;
   updated_at: string;
 };

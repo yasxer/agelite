@@ -11,11 +11,12 @@ import {
   Phone,
   Plus,
   Store,
+  Truck,
   User,
 } from "lucide-react";
 import { createOrder, type OrderFormState } from "@/app/actions/orders";
 import { WILAYAS } from "@/lib/wilayas";
-import type { ProductColor } from "@/lib/types";
+import type { FreeDeliveryMode, ProductColor } from "@/lib/types";
 
 const initialState: OrderFormState = {};
 
@@ -59,10 +60,12 @@ export function OrderForm({
   price,
   colors,
   sizes,
+  freeDeliveryMode,
 }: {
   price: number;
   colors: ProductColor[];
   sizes: string[];
+  freeDeliveryMode: FreeDeliveryMode;
 }) {
   const [state, action, pending] = useActionState(createOrder, initialState);
   const [quantity, setQuantity] = useState(1);
@@ -126,12 +129,20 @@ export function OrderForm({
   const selectedCenter = centers.find((c) => c.id === stopdeskId) ?? null;
   const stopdeskAvailable = centers.length > 0;
 
-  const fee =
+  // Tarif réellement facturé par Yalidine pour ce mode de livraison
+  const yalidineFee =
     delivery === null
       ? null
       : deliveryType === "domicile"
         ? delivery.homeFee
         : selectedCenter?.fee ?? delivery.deskFee ?? delivery.homeFee;
+  // "Tout offert" : plus de choix, la commande part toujours à domicile
+  const hideDeliveryChoice = freeDeliveryMode === "all";
+  // Livraison offerte : le client ne paie rien, la boutique absorbe les frais
+  const isFree =
+    freeDeliveryMode === "all" ||
+    (freeDeliveryMode === "stopdesk" && deliveryType === "stopdesk");
+  const fee = isFree ? 0 : yalidineFee;
   const total = price * quantity + (fee ?? 0);
   const variantsOk =
     (colors.length === 0 || selectedColor !== null) &&
@@ -179,6 +190,15 @@ export function OrderForm({
       <h3 className="text-xl font-bold text-zinc-900">
         اطلب الآن — الدفع عند الاستلام
       </h3>
+
+      {freeDeliveryMode !== "none" && (
+        <p className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 px-4 py-2.5 text-center text-sm font-bold text-emerald-700">
+          <Truck className="size-4 shrink-0" />
+          {freeDeliveryMode === "all"
+            ? "التوصيل مجاني لكل الولايات"
+            : "التوصيل مجاني للمكتب (Stopdesk)"}
+        </p>
+      )}
 
       {/* Anti-bot, invisible */}
       <input
@@ -293,59 +313,68 @@ export function OrderForm({
         </p>
       )}
 
-      {/* Type de livraison */}
-      <div className="grid grid-cols-2 gap-3">
-        {(
-          [
-            {
-              value: "domicile",
-              label: "توصيل للمنزل",
-              icon: Home,
-              optionFee: delivery?.homeFee ?? null,
-              disabled: false,
-            },
-            {
-              value: "stopdesk",
-              label: "مكتب التوصيل (Stopdesk)",
-              icon: Store,
-              optionFee: delivery?.deskFee ?? null,
-              disabled: Boolean(delivery) && !stopdeskAvailable,
-            },
-          ] as const
-        ).map(({ value, label, icon: Icon, optionFee, disabled }) => (
-          <label
-            key={value}
-            className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center transition ${
-              disabled
-                ? "cursor-not-allowed border-zinc-100 opacity-50"
-                : deliveryType === value
-                  ? "cursor-pointer border-(--primary) bg-(--primary)/5"
-                  : "cursor-pointer border-zinc-200 hover:border-zinc-300"
-            }`}
-          >
-            <input
-              type="radio"
-              name="delivery_type"
-              value={value}
-              disabled={disabled}
-              checked={deliveryType === value}
-              onChange={() => setDeliveryType(value)}
-              className="sr-only"
-            />
-            <Icon
-              className={`size-5 ${deliveryType === value ? "text-(--primary)" : "text-zinc-400"}`}
-            />
-            <span className="text-sm font-semibold text-zinc-800">{label}</span>
-            <span className="text-xs text-zinc-500">
-              {loadingFees
-                ? "..."
-                : optionFee !== null
-                  ? formatDA(optionFee)
-                  : "—"}
-            </span>
-          </label>
-        ))}
-      </div>
+      {/* Type de livraison — masqué quand tout est offert : la commande part
+          alors systématiquement à domicile */}
+      {hideDeliveryChoice ? (
+        <input type="hidden" name="delivery_type" value="domicile" />
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {(
+            [
+              {
+                value: "domicile",
+                label: "توصيل للمنزل",
+                icon: Home,
+                optionFee: delivery?.homeFee ?? null,
+                disabled: false,
+              },
+              {
+                value: "stopdesk",
+                label: "مكتب التوصيل (Stopdesk)",
+                icon: Store,
+                optionFee: delivery?.deskFee ?? null,
+                disabled: Boolean(delivery) && !stopdeskAvailable,
+              },
+            ] as const
+          ).map(({ value, label, icon: Icon, optionFee, disabled }) => (
+            <label
+              key={value}
+              className={`flex flex-col items-center gap-1 rounded-xl border-2 p-3 text-center transition ${
+                disabled
+                  ? "cursor-not-allowed border-zinc-100 opacity-50"
+                  : deliveryType === value
+                    ? "cursor-pointer border-(--primary) bg-(--primary)/5"
+                    : "cursor-pointer border-zinc-200 hover:border-zinc-300"
+              }`}
+            >
+              <input
+                type="radio"
+                name="delivery_type"
+                value={value}
+                disabled={disabled}
+                checked={deliveryType === value}
+                onChange={() => setDeliveryType(value)}
+                className="sr-only"
+              />
+              <Icon
+                className={`size-5 ${deliveryType === value ? "text-(--primary)" : "text-zinc-400"}`}
+              />
+              <span className="text-sm font-semibold text-zinc-800">{label}</span>
+              {freeDeliveryMode === "stopdesk" && value === "stopdesk" ? (
+                <span className="text-xs font-bold text-emerald-600">مجاني</span>
+              ) : (
+                <span className="text-xs text-zinc-500">
+                  {loadingFees
+                    ? "..."
+                    : optionFee !== null
+                      ? formatDA(optionFee)
+                      : "—"}
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
 
       {/* Stopdesk : choix du bureau Yalidine de la wilaya */}
       {deliveryType === "stopdesk" && stopdeskAvailable && (
@@ -421,13 +450,17 @@ export function OrderForm({
         </div>
         <div className="flex justify-between text-zinc-600">
           <span>التوصيل</span>
-          <span>
-            {loadingFees
-              ? "..."
-              : fee !== null
-                ? formatDA(fee)
-                : "اختر ولاية"}
-          </span>
+          {isFree ? (
+            <span className="font-bold text-emerald-600">مجاني</span>
+          ) : (
+            <span>
+              {loadingFees
+                ? "..."
+                : fee !== null
+                  ? formatDA(fee)
+                  : "اختر ولاية"}
+            </span>
+          )}
         </div>
         <div className="mt-1 flex justify-between border-t border-zinc-200 pt-2 text-base font-bold text-zinc-900">
           <span>المجموع</span>

@@ -3,11 +3,67 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { deleteImages, uploadImage } from "@/lib/storage";
+import {
+  deleteImages,
+  createUploadTarget,
+  isBucketUrl,
+  MAX_IMAGE_SIZE,
+  type UploadTarget,
+} from "@/lib/storage";
 import { getProduct } from "@/lib/data";
 import { requireAdmin } from "./auth";
 
 export type ProductFormState = { success?: boolean; error?: string };
+
+/** Nombre d'images demandables en une seule sélection (la galerie, elle, est illimitée). */
+const MAX_BATCH = 40;
+
+/**
+ * Prépare des URLs d'upload signées pour que le navigateur envoie les images
+ * directement à Supabase. Le serveur ne reçoit ensuite que les URLs publiques,
+ * ce qui lève la limite de taille des Server Actions (25 Mo) : le client peut
+ * ajouter autant d'images qu'il veut.
+ */
+export async function createProductUploadUrls(
+  files: { name: string; type: string; size: number }[]
+): Promise<{ targets?: UploadTarget[]; error?: string }> {
+  await requireAdmin();
+
+  if (!Array.isArray(files) || files.length === 0) return { error: "Aucun fichier." };
+  if (files.length > MAX_BATCH)
+    return { error: `${MAX_BATCH} images maximum par sélection.` };
+
+  for (const file of files) {
+    if (typeof file?.type !== "string" || !file.type.startsWith("image/"))
+      return { error: "Seules les images sont acceptées." };
+    if (!Number.isFinite(file?.size) || file.size <= 0 || file.size > MAX_IMAGE_SIZE)
+      return { error: "Image trop lourde (max 5 Mo)." };
+  }
+
+  try {
+    const targets = await Promise.all(
+      files.map((file) => createUploadTarget(String(file.name || "image.jpg"), "product"))
+    );
+    return { targets };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Upload impossible." };
+  }
+}
+
+/**
+ * Supprime une image tout juste uploadée que l'admin retire avant d'enregistrer.
+ * Refuse toute URL déjà rattachée au produit : celles-là ne partent qu'après
+ * un enregistrement réussi (voir `updateProduct`).
+ */
+export async function discardProductImage(url: string): Promise<void> {
+  await requireAdmin();
+  if (typeof url !== "string" || !isBucketUrl(url, "product")) return;
+
+  const product = await getProduct();
+  if (product?.images.includes(url)) return;
+
+  await deleteImages([url]);
+}
 
 export async function updateProduct(
   _prev: ProductFormState,
@@ -61,17 +117,18 @@ export async function updateProduct(
   if (old_price !== null && (!Number.isFinite(old_price) || old_price < 0))
     return { error: "Ancien prix invalide." };
 
-  // Images existantes conservées + nouvelles uploadées
-  const kept = formData.getAll("existing_images").map(String).filter(Boolean);
-  const images = [...kept];
+  // Le navigateur a déjà uploadé les images vers Supabase : il ne renvoie ici
+  // que la liste ordonnée des URLs à conserver.
+  let images: string[] = [];
   try {
-    for (const entry of formData.getAll("new_images")) {
-      if (entry instanceof File && entry.size > 0) {
-        images.push(await uploadImage(entry, "product"));
-      }
-    }
-  } catch (e) {
-    return { error: e instanceof Error ? e.message : "Upload échoué." };
+    const raw: unknown = JSON.parse(String(formData.get("images") || "[]"));
+    if (!Array.isArray(raw)) return { error: "Images invalides." };
+    images = raw.filter(
+      (url): url is string => typeof url === "string" && isBucketUrl(url, "product")
+    );
+    images = [...new Set(images)];
+  } catch {
+    return { error: "Images invalides." };
   }
 
   const { error } = await supabase()

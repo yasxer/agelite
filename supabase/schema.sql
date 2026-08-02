@@ -55,8 +55,26 @@ create table if not exists public.settings (
   from_wilaya text not null default '16 - Alger',
   pixel_id text,   -- Meta Pixel ID (Facebook), optionnel
   fb_domain_verification text,   -- Meta Domain Verification (balise meta), optionnel
+  -- Livraison offerte : 'none' (le client paie), 'stopdesk' (bureau offert,
+  -- domicile payant) ou 'all' (tout offert, livraison toujours à domicile).
+  -- Yalidine prélève ses frais dans tous les cas : c'est la marge qui absorbe.
+  free_delivery_mode text not null default 'none'
+    check (free_delivery_mode in ('none','all','stopdesk')),
   updated_at timestamptz not null default now()
 );
+
+-- ── Tentatives de connexion admin (anti brute force) ───────────────────────
+create table if not exists public.login_attempts (
+  ip text primary key,
+  failures int not null default 0,
+  window_started_at timestamptz not null default now(),
+  locked_until timestamptz,
+  lockouts int not null default 0,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists login_attempts_updated_at_idx
+  on public.login_attempts (updated_at);
 
 -- Lignes initiales
 insert into public.product (name) select 'Mon Produit'
@@ -69,6 +87,7 @@ insert into public.settings (store_name) select 'Ma Boutique'
 alter table public.product enable row level security;
 alter table public.orders enable row level security;
 alter table public.settings enable row level security;
+alter table public.login_attempts enable row level security;
 
 -- ── Storage : bucket public pour les images produit et le logo ─────────────
 insert into storage.buckets (id, name, public)

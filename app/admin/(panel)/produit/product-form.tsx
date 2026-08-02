@@ -1,9 +1,24 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ImagePlus, Loader2, Plus, Save, X } from "lucide-react";
-import { updateProduct, type ProductFormState } from "@/app/actions/product";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CircleAlert,
+  ImagePlus,
+  Loader2,
+  Plus,
+  RotateCcw,
+  Save,
+  X,
+} from "lucide-react";
+import {
+  createProductUploadUrls,
+  discardProductImage,
+  updateProduct,
+  type ProductFormState,
+} from "@/app/actions/product";
 import type { Product, ProductColor } from "@/lib/types";
 
 const inputClass =
@@ -11,12 +26,187 @@ const inputClass =
 
 const labelClass = "flex flex-col gap-1.5 text-sm font-medium text-zinc-700";
 
+/** Doit rester aligné sur `MAX_IMAGE_SIZE` (lib/storage.ts), non importable ici. */
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+/** Taille des lots d'URLs signées demandées au serveur (voir `MAX_BATCH`). */
+const BATCH_SIZE = 40;
+
+type ImageItem = {
+  id: string;
+  /** Aperçu affiché : URL publique (image déjà enregistrée) ou objectURL local. */
+  preview: string;
+  /** URL publique Supabase, connue une fois l'upload terminé. */
+  url: string | null;
+  status: "uploading" | "done" | "error";
+  progress: number;
+  /** Uploadée dans cette session : peut être effacée du storage si retirée. */
+  isNew: boolean;
+  file?: File;
+};
+
+/**
+ * Envoie le fichier directement à Supabase via l'URL signée. On passe par
+ * XMLHttpRequest et non `fetch` : lui seul expose la progression d'upload.
+ */
+function putToSignedUrl(
+  signedUrl: string,
+  file: File,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", signedUrl);
+    xhr.setRequestHeader("content-type", file.type);
+    xhr.setRequestHeader("cache-control", "max-age=31536000");
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    });
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload refusé (${xhr.status})`));
+    });
+    xhr.addEventListener("error", () => reject(new Error("Connexion interrompue")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload annulé")));
+    xhr.send(file);
+  });
+}
+
 export function ProductForm({ product }: { product: Product }) {
   const [state, action, pending] = useActionState<ProductFormState, FormData>(
     updateProduct,
     {}
   );
-  const [images, setImages] = useState(product.images);
+
+  // Images : uploadées directement vers Supabase depuis le navigateur, donc
+  // sans limite de nombre ni de poids total (les Server Actions plafonnent).
+  const [items, setItems] = useState<ImageItem[]>(() =>
+    product.images.map((url) => ({
+      id: url,
+      preview: url,
+      url,
+      status: "done" as const,
+      progress: 100,
+      isNew: false,
+    }))
+  );
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const uploadedUrls = items.flatMap((it) =>
+    it.status === "done" && it.url ? [it.url] : []
+  );
+  const uploading = items.some((it) => it.status === "uploading");
+  const failedCount = items.filter((it) => it.status === "error").length;
+
+  // Les objectURL d'aperçu sont libérés au démontage du formulaire.
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
+  useEffect(
+    () => () => {
+      for (const it of itemsRef.current) {
+        if (it.preview.startsWith("blob:")) URL.revokeObjectURL(it.preview);
+      }
+    },
+    []
+  );
+
+  function patchItem(id: string, changes: Partial<ImageItem>) {
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...changes } : it)));
+  }
+
+  function uploadBatch(entries: { id: string; file: File }[]) {
+    startTransition(async () => {
+      const result = await createProductUploadUrls(
+        entries.map(({ file }) => ({ name: file.name, type: file.type, size: file.size }))
+      );
+      if (!result.targets) {
+        setImageError(result.error ?? "Upload impossible.");
+        for (const { id } of entries) patchItem(id, { status: "error", progress: 0 });
+        return;
+      }
+      const targets = result.targets;
+      await Promise.all(
+        entries.map(async ({ id, file }, i) => {
+          try {
+            await putToSignedUrl(targets[i].signedUrl, file, (percent) =>
+              patchItem(id, { progress: percent })
+            );
+            patchItem(id, { status: "done", progress: 100, url: targets[i].publicUrl });
+          } catch {
+            patchItem(id, { status: "error", progress: 0 });
+          }
+        })
+      );
+    });
+  }
+
+  function addFiles(list: FileList | null) {
+    const files = Array.from(list ?? []);
+    // Réinitialisé pour que resélectionner le même fichier redéclenche `change`,
+    // et pour que chaque sélection s'ajoute aux précédentes au lieu de les remplacer.
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (files.length === 0) return;
+
+    const accepted = files.filter(
+      (f) => f.type.startsWith("image/") && f.size <= MAX_IMAGE_SIZE
+    );
+    const ignored = files.length - accepted.length;
+    setImageError(
+      ignored > 0
+        ? `${ignored} fichier${ignored > 1 ? "s" : ""} ignoré${ignored > 1 ? "s" : ""} : images de 5 Mo maximum.`
+        : null
+    );
+    if (accepted.length === 0) return;
+
+    const entries = accepted.map((file) => ({ id: crypto.randomUUID(), file }));
+    setItems((prev) => [
+      ...prev,
+      ...entries.map(({ id, file }) => ({
+        id,
+        preview: URL.createObjectURL(file),
+        url: null,
+        status: "uploading" as const,
+        progress: 0,
+        isNew: true,
+        file,
+      })),
+    ]);
+    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
+      uploadBatch(entries.slice(i, i + BATCH_SIZE));
+    }
+  }
+
+  function retryItem(item: ImageItem) {
+    if (!item.file) return;
+    setImageError(null);
+    patchItem(item.id, { status: "uploading", progress: 0 });
+    uploadBatch([{ id: item.id, file: item.file }]);
+  }
+
+  function removeItem(item: ImageItem) {
+    setItems((prev) => prev.filter((it) => it.id !== item.id));
+    if (item.preview.startsWith("blob:")) URL.revokeObjectURL(item.preview);
+    // Uploadée puis retirée avant enregistrement : inutile de la laisser
+    // traîner dans le storage. Les images déjà enregistrées, elles, ne sont
+    // supprimées qu'après un enregistrement réussi (côté serveur).
+    if (item.isNew && item.url) {
+      const url = item.url;
+      startTransition(async () => {
+        await discardProductImage(url);
+      });
+    }
+  }
+
+  function moveItem(index: number, delta: number) {
+    const target = index + delta;
+    if (target < 0 || target >= items.length) return;
+    const next = [...items];
+    [next[index], next[target]] = [next[target], next[index]];
+    setItems(next);
+  }
 
   // Couleurs disponibles du produit
   const [colors, setColors] = useState<ProductColor[]>(product.colors);
@@ -219,20 +409,81 @@ export function ProductForm({ product }: { product: Product }) {
 
       {/* Images */}
       <div className="flex flex-col gap-2.5">
-        <span className="text-sm font-medium text-zinc-700">Images du produit</span>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-medium text-zinc-700">Images du produit</span>
+          {items.length > 0 && (
+            <span className="text-xs text-zinc-400">
+              {items.length} image{items.length > 1 ? "s" : ""}
+              {uploading && " — upload en cours…"}
+            </span>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-3">
-          {images.map((src) => (
-            <div key={src} className="group relative">
-              <input type="hidden" name="existing_images" value={src} />
+          {items.map((item, index) => (
+            <div key={item.id} className="group relative">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={src}
+                src={item.preview}
                 alt=""
                 className="size-24 rounded-xl object-cover ring-1 ring-zinc-200"
               />
+
+              {item.status === "uploading" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-zinc-900/55">
+                  <Loader2 className="size-5 animate-spin text-white" />
+                  <div className="h-1 w-14 overflow-hidden rounded-full bg-white/30">
+                    <div
+                      className="h-full rounded-full bg-white transition-all"
+                      style={{ width: `${item.progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {item.status === "error" && (
+                <button
+                  type="button"
+                  onClick={() => retryItem(item)}
+                  className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-red-600/75 text-white"
+                >
+                  <RotateCcw className="size-5" />
+                  <span className="text-[10px] font-semibold">Réessayer</span>
+                </button>
+              )}
+
+              {item.status === "done" && index === 0 && (
+                <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-md bg-zinc-900/70 py-0.5 text-center text-[10px] font-semibold text-white">
+                  Principale
+                </span>
+              )}
+
+              {item.status === "done" && items.length > 1 && (
+                <div className="absolute left-1 top-1 flex gap-1 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => moveItem(index, -1)}
+                    disabled={index === 0}
+                    aria-label="Déplacer avant"
+                    className="flex size-6 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow transition hover:bg-white disabled:opacity-30"
+                  >
+                    <ArrowLeft className="size-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveItem(index, 1)}
+                    disabled={index === items.length - 1}
+                    aria-label="Déplacer après"
+                    className="flex size-6 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow transition hover:bg-white disabled:opacity-30"
+                  >
+                    <ArrowRight className="size-3.5" />
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setImages((imgs) => imgs.filter((i) => i !== src))}
+                onClick={() => removeItem(item)}
                 className="absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-red-500 text-white shadow transition hover:bg-red-600"
                 aria-label="Supprimer l'image"
               >
@@ -240,20 +491,41 @@ export function ProductForm({ product }: { product: Product }) {
               </button>
             </div>
           ))}
+
           <label className="flex size-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-zinc-300 text-zinc-400 transition hover:border-indigo-400 hover:text-indigo-500">
             <ImagePlus className="size-6" />
             <span className="text-[10px] font-medium">Ajouter</span>
             <input
+              ref={fileInputRef}
               type="file"
-              name="new_images"
               accept="image/*"
               multiple
               className="hidden"
+              onChange={(e) => addFiles(e.target.files)}
             />
           </label>
         </div>
+
+        <input type="hidden" name="images" value={JSON.stringify(uploadedUrls)} />
+
+        {imageError && (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-red-600">
+            <CircleAlert className="size-3.5 shrink-0" />
+            {imageError}
+          </p>
+        )}
+        {failedCount > 0 && (
+          <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
+            <CircleAlert className="size-3.5 shrink-0" />
+            {failedCount} image{failedCount > 1 ? "s" : ""} en échec : cliquez dessus pour
+            réessayer, sinon elle{failedCount > 1 ? "s" : ""} ne sera
+            {failedCount > 1 ? "nt" : ""} pas enregistrée{failedCount > 1 ? "s" : ""}.
+          </p>
+        )}
         <p className="text-xs text-zinc-400">
-          Les nouvelles images seront uploadées à l&apos;enregistrement (max 5 Mo chacune).
+          Autant d&apos;images que vous voulez, 5 Mo maximum chacune. Elles sont envoyées
+          dès la sélection ; survolez une image pour changer son ordre — la première est
+          affichée en grand sur la landing.
         </p>
       </div>
 
@@ -266,7 +538,7 @@ export function ProductForm({ product }: { product: Product }) {
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || uploading}
           className="flex items-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           {pending ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}

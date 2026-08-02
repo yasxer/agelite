@@ -110,7 +110,11 @@ export default async function LandingPage() {
           <div className="mt-1 flex items-center gap-4 text-xs font-semibold text-zinc-500">
             <span className="flex items-center gap-1.5">
               <Truck className="size-4 text-(--primary)" />
-              69 wilayas
+              {settings.free_delivery_mode === "all"
+                ? "Livraison gratuite"
+                : settings.free_delivery_mode === "stopdesk"
+                  ? "Gratuit en Stopdesk"
+                  : "69 wilayas"}
             </span>
             <span className="h-3 w-px bg-zinc-300" />
             <span className="flex items-center gap-1.5">
@@ -152,6 +156,7 @@ export default async function LandingPage() {
             price={product.price}
             colors={product.colors}
             sizes={product.sizes}
+            freeDeliveryMode={settings.free_delivery_mode}
           />
         </div>
       </main>

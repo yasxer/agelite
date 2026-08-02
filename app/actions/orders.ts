@@ -27,20 +27,29 @@ export async function createOrder(
   const phone = String(formData.get("phone") || "").replace(/[\s.-]/g, "");
   const wilaya = String(formData.get("wilaya") || "");
   const address = String(formData.get("address") || "").trim();
-  const delivery_type =
-    formData.get("delivery_type") === "stopdesk" ? "stopdesk" : "domicile";
   const stopdeskId = Number(formData.get("stopdesk_id")) || null;
   const quantity = Math.min(Math.max(Number(formData.get("quantity")) || 1, 1), 20);
 
+  // Contrôles sans accès base d'abord : inutile d'interroger Supabase pour
+  // une soumission manifestement invalide
   if (customer_name.length < 3) return { error: "الرجاء إدخال اسمكم الكامل." };
   if (!PHONE_RE.test(phone))
     return { error: "رقم الهاتف غير صحيح (مثال: 0550123456)." };
   if (!WILAYAS.includes(wilaya)) return { error: "الرجاء اختيار ولايتكم." };
-  if (delivery_type === "domicile" && address.length < 5)
-    return { error: "الرجاء إدخال عنوان التوصيل." };
 
   const [product, settings] = await Promise.all([getProduct(), getSettings()]);
   if (!product) return { error: "المنتج غير متوفر حاليا." };
+
+  // En mode "tout offert" le formulaire n'affiche plus le choix : on impose le
+  // domicile côté serveur pour qu'une requête forgée ne puisse pas passer en
+  // Stopdesk.
+  const requestedType =
+    formData.get("delivery_type") === "stopdesk" ? "stopdesk" : "domicile";
+  const delivery_type =
+    settings.free_delivery_mode === "all" ? "domicile" : requestedType;
+
+  if (delivery_type === "domicile" && address.length < 5)
+    return { error: "الرجاء إدخال عنوان التوصيل." };
 
   // Variantes : obligatoires si le produit en définit
   const color = String(formData.get("color") || "").trim() || null;
@@ -80,7 +89,12 @@ export async function createOrder(
     delivery = info.homeFee;
   }
 
-  const total = product.price * quantity + delivery;
+  // Livraison offerte : le client ne paie que le produit. Yalidine facture
+  // quand même ses frais, déduits du versement à la boutique.
+  const isFree =
+    settings.free_delivery_mode === "all" ||
+    (settings.free_delivery_mode === "stopdesk" && delivery_type === "stopdesk");
+  const total = product.price * quantity + (isFree ? 0 : delivery);
 
   const { error } = await supabase().from("orders").insert({
     customer_name,

@@ -1,9 +1,17 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { CheckCircle2, ImagePlus, Loader2, Save, Trash2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ImagePlus,
+  Loader2,
+  Save,
+  Trash2,
+  X,
+} from "lucide-react";
 import { updateSettings, type SettingsFormState } from "@/app/actions/settings";
-import type { Settings } from "@/lib/types";
+import type { FreeDeliveryMode, Settings } from "@/lib/types";
 import { WILAYAS } from "@/lib/wilayas";
 
 const inputClass =
@@ -23,6 +31,28 @@ const PRESET_COLORS = [
 
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
+const FREE_DELIVERY_OPTIONS: {
+  value: FreeDeliveryMode;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "none",
+    label: "Aucune",
+    hint: "Le client paie les frais de livraison Yalidine.",
+  },
+  {
+    value: "stopdesk",
+    label: "Stopdesk uniquement",
+    hint: "Le bureau est offert, le domicile reste payant — le client choisit.",
+  },
+  {
+    value: "all",
+    label: "Tout offert",
+    hint: "Plus de choix pour le client : tout part en livraison à domicile.",
+  },
+];
+
 export function SettingsForm({ settings }: { settings: Settings }) {
   const [state, action, pending] = useActionState<SettingsFormState, FormData>(
     updateSettings,
@@ -35,6 +65,9 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   // Aperçu local du logo choisi : visible avant tout envoi au serveur
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [freeDeliveryMode, setFreeDeliveryMode] = useState<FreeDeliveryMode>(
+    settings.free_delivery_mode
+  );
   const [pixelId, setPixelId] = useState(settings.pixel_id ?? "");
   const [fbDomainVerification, setFbDomainVerification] = useState(
     settings.fb_domain_verification ?? ""
@@ -254,6 +287,42 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             12 500 DA
           </span>
         </div>
+      </div>
+
+      {/* Livraison offerte */}
+      <div className="flex flex-col gap-2.5 rounded-2xl bg-zinc-50 p-4">
+        <span className="text-sm font-medium text-zinc-700">Livraison offerte</span>
+        <div className="flex flex-col gap-1">
+          {FREE_DELIVERY_OPTIONS.map(({ value, label, hint }) => (
+            <label
+              key={value}
+              className={`flex cursor-pointer items-start gap-3 rounded-xl px-3 py-2.5 transition ${
+                freeDeliveryMode === value ? "bg-white ring-1 ring-indigo-200" : ""
+              }`}
+            >
+              <input
+                type="radio"
+                name="free_delivery_mode"
+                value={value}
+                checked={freeDeliveryMode === value}
+                onChange={() => setFreeDeliveryMode(value)}
+                className="mt-0.5 size-4.5 shrink-0 cursor-pointer accent-indigo-600"
+              />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-semibold text-zinc-800">{label}</span>
+                <span className="text-xs text-zinc-500">{hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        {freeDeliveryMode !== "none" && (
+          <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs leading-relaxed text-amber-700">
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+            {freeDeliveryMode === "all"
+              ? "Yalidine prélève quand même ses frais sur votre versement, et c'est le tarif domicile — le plus cher — qui est absorbé à chaque commande."
+              : "Yalidine prélève quand même ses frais de bureau sur votre versement. Le tarif Stopdesk reste le moins cher, et cette offre pousse les clients vers cette option."}
+          </p>
+        )}
       </div>
 
       <label className={labelClass}>

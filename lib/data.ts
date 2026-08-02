@@ -1,6 +1,12 @@
 import "server-only";
 import { supabase } from "./supabase";
-import type { Order, OrderStatus, Product, Settings } from "./types";
+import {
+  FREE_DELIVERY_MODES,
+  type Order,
+  type OrderStatus,
+  type Product,
+  type Settings,
+} from "./types";
 
 export const DEFAULT_SETTINGS: Omit<Settings, "id" | "updated_at"> = {
   store_name: "Ma Boutique",
@@ -9,6 +15,7 @@ export const DEFAULT_SETTINGS: Omit<Settings, "id" | "updated_at"> = {
   from_wilaya: "16 - Alger",
   pixel_id: null,
   fb_domain_verification: null,
+  free_delivery_mode: "none",
 };
 
 export async function getProduct(): Promise<Product | null> {
@@ -39,9 +46,19 @@ export async function getSettings(): Promise<Settings> {
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`Erreur settings: ${error.message}`);
-  const settings = data
+  const raw = data
     ? (data as Settings)
     : { id: "", updated_at: "", ...DEFAULT_SETTINGS };
+  // Le mode est retombé sur "none" si la valeur est inconnue — notamment tant
+  // que la migration 009 n'a pas été jouée, où la colonne est absente. Sans ce
+  // garde-fou la landing annoncerait une livraison offerte qui serait quand
+  // même facturée dans le total.
+  const settings: Settings = {
+    ...raw,
+    free_delivery_mode: FREE_DELIVERY_MODES.includes(raw.free_delivery_mode)
+      ? raw.free_delivery_mode
+      : "none",
+  };
   settingsCache = { expires: Date.now() + 60_000, data: settings };
   return settings;
 }
