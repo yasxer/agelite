@@ -19,6 +19,7 @@ import {
   updateProduct,
   type ProductFormState,
 } from "@/app/actions/product";
+import { MAX_SOURCE_SIZE, prepareImage } from "@/lib/prepare-image";
 import type { Product, ProductColor } from "@/lib/types";
 
 const inputClass =
@@ -26,23 +27,39 @@ const inputClass =
 
 const labelClass = "flex flex-col gap-1.5 text-sm font-medium text-zinc-700";
 
-/** Doit rester aligné sur `MAX_IMAGE_SIZE` (lib/storage.ts), non importable ici. */
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 /** Taille des lots d'URLs signées demandées au serveur (voir `MAX_BATCH`). */
 const BATCH_SIZE = 40;
+/** Conversions menées de front. Le canvas travaille sur le thread principal. */
+const CONVERT_CONCURRENCY = 3;
 
 type ImageItem = {
   id: string;
-  /** Aperçu affiché : URL publique (image déjà enregistrée) ou objectURL local. */
-  preview: string;
+  /** Aperçu affiché ; `null` tant que la conversion n'a pas produit de WebP. */
+  preview: string | null;
   /** URL publique Supabase, connue une fois l'upload terminé. */
   url: string | null;
-  status: "uploading" | "done" | "error";
+  status: "preparing" | "uploading" | "done" | "error";
   progress: number;
   /** Uploadée dans cette session : peut être effacée du storage si retirée. */
   isNew: boolean;
+  /** Fichier converti, conservé pour permettre un réessai. */
   file?: File;
+  error?: string;
 };
+
+/** Exécute `task` sur chaque élément, `limit` en parallèle au maximum. */
+async function mapLimit<T>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<void>
+): Promise<void> {
+  let cursor = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (cursor < items.length) await task(items[cursor++]);
+    })
+  );
+}
 
 /**
  * Envoie le fichier directement à Supabase via l'URL signée. On passe par
@@ -96,7 +113,7 @@ export function ProductForm({ product }: { product: Product }) {
   const uploadedUrls = items.flatMap((it) =>
     it.status === "done" && it.url ? [it.url] : []
   );
-  const uploading = items.some((it) => it.status === "uploading");
+  const busy = items.some((it) => it.status === "preparing" || it.status === "uploading");
   const failedCount = items.filter((it) => it.status === "error").length;
 
   // Les objectURL d'aperçu sont libérés au démontage du formulaire.
@@ -107,7 +124,7 @@ export function ProductForm({ product }: { product: Product }) {
   useEffect(
     () => () => {
       for (const it of itemsRef.current) {
-        if (it.preview.startsWith("blob:")) URL.revokeObjectURL(it.preview);
+        if (it.preview?.startsWith("blob:")) URL.revokeObjectURL(it.preview);
       }
     },
     []
@@ -143,39 +160,62 @@ export function ProductForm({ product }: { product: Product }) {
     });
   }
 
-  function addFiles(list: FileList | null) {
+  async function addFiles(list: FileList | null) {
     const files = Array.from(list ?? []);
     // Réinitialisé pour que resélectionner le même fichier redéclenche `change`,
     // et pour que chaque sélection s'ajoute aux précédentes au lieu de les remplacer.
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (files.length === 0) return;
 
+    // Les HEIC de l'iPhone arrivent parfois avec un type MIME vide : on se fie
+    // aussi à l'extension, la conversion tranchera pour de bon.
     const accepted = files.filter(
-      (f) => f.type.startsWith("image/") && f.size <= MAX_IMAGE_SIZE
+      (f) =>
+        (f.type.startsWith("image/") || /\.(hei[cf]|jpe?g|png|webp|gif|avif)$/i.test(f.name)) &&
+        f.size <= MAX_SOURCE_SIZE
     );
     const ignored = files.length - accepted.length;
     setImageError(
       ignored > 0
-        ? `${ignored} fichier${ignored > 1 ? "s" : ""} ignoré${ignored > 1 ? "s" : ""} : images de 5 Mo maximum.`
+        ? `${ignored} fichier${ignored > 1 ? "s" : ""} ignoré${ignored > 1 ? "s" : ""} : images de 50 Mo maximum.`
         : null
     );
     if (accepted.length === 0) return;
 
-    const entries = accepted.map((file) => ({ id: crypto.randomUUID(), file }));
+    const entries = accepted.map((source) => ({ id: crypto.randomUUID(), source }));
     setItems((prev) => [
       ...prev,
-      ...entries.map(({ id, file }) => ({
+      ...entries.map(({ id }) => ({
         id,
-        preview: URL.createObjectURL(file),
+        preview: null,
         url: null,
-        status: "uploading" as const,
+        status: "preparing" as const,
         progress: 0,
         isNew: true,
-        file,
       })),
     ]);
-    for (let i = 0; i < entries.length; i += BATCH_SIZE) {
-      uploadBatch(entries.slice(i, i + BATCH_SIZE));
+
+    // Décodage (HEIC compris), redimensionnement et réencodage en WebP avant
+    // le moindre octet envoyé : ce qui part est lisible par tous les navigateurs.
+    const ready: { id: string; file: File }[] = [];
+    await mapLimit(entries, CONVERT_CONCURRENCY, async ({ id, source }) => {
+      try {
+        const file = await prepareImage(source);
+        patchItem(id, {
+          file,
+          preview: URL.createObjectURL(file),
+          status: "uploading",
+        });
+        ready.push({ id, file });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : "Conversion échouée.";
+        setImageError(message);
+        patchItem(id, { status: "error", error: message });
+      }
+    });
+
+    for (let i = 0; i < ready.length; i += BATCH_SIZE) {
+      uploadBatch(ready.slice(i, i + BATCH_SIZE));
     }
   }
 
@@ -188,7 +228,7 @@ export function ProductForm({ product }: { product: Product }) {
 
   function removeItem(item: ImageItem) {
     setItems((prev) => prev.filter((it) => it.id !== item.id));
-    if (item.preview.startsWith("blob:")) URL.revokeObjectURL(item.preview);
+    if (item.preview?.startsWith("blob:")) URL.revokeObjectURL(item.preview);
     // Uploadée puis retirée avant enregistrement : inutile de la laisser
     // traîner dans le storage. Les images déjà enregistrées, elles, ne sont
     // supprimées qu'après un enregistrement réussi (côté serveur).
@@ -414,7 +454,7 @@ export function ProductForm({ product }: { product: Product }) {
           {items.length > 0 && (
             <span className="text-xs text-zinc-400">
               {items.length} image{items.length > 1 ? "s" : ""}
-              {uploading && " — upload en cours…"}
+              {busy && " — traitement en cours…"}
             </span>
           )}
         </div>
@@ -422,12 +462,23 @@ export function ProductForm({ product }: { product: Product }) {
         <div className="flex flex-wrap gap-3">
           {items.map((item, index) => (
             <div key={item.id} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.preview}
-                alt=""
-                className="size-24 rounded-xl object-cover ring-1 ring-zinc-200"
-              />
+              {item.preview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.preview}
+                  alt=""
+                  className="size-24 rounded-xl object-cover ring-1 ring-zinc-200"
+                />
+              ) : (
+                <div className="size-24 rounded-xl bg-zinc-100 ring-1 ring-zinc-200" />
+              )}
+
+              {item.status === "preparing" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-zinc-900/10">
+                  <Loader2 className="size-5 animate-spin text-zinc-500" />
+                  <span className="text-[10px] font-medium text-zinc-500">Conversion…</span>
+                </div>
+              )}
 
               {item.status === "uploading" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-xl bg-zinc-900/55">
@@ -441,16 +492,27 @@ export function ProductForm({ product }: { product: Product }) {
                 </div>
               )}
 
-              {item.status === "error" && (
-                <button
-                  type="button"
-                  onClick={() => retryItem(item)}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-red-600/75 text-white"
-                >
-                  <RotateCcw className="size-5" />
-                  <span className="text-[10px] font-semibold">Réessayer</span>
-                </button>
-              )}
+              {item.status === "error" &&
+                (item.file ? (
+                  <button
+                    type="button"
+                    onClick={() => retryItem(item)}
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-red-600/75 text-white"
+                    title={item.error}
+                  >
+                    <RotateCcw className="size-5" />
+                    <span className="text-[10px] font-semibold">Réessayer</span>
+                  </button>
+                ) : (
+                  // Échec de conversion : réessayer le même fichier ne servirait à rien.
+                  <span
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-xl bg-red-600/75 px-1 text-center text-white"
+                    title={item.error}
+                  >
+                    <CircleAlert className="size-5" />
+                    <span className="text-[10px] font-semibold">Illisible</span>
+                  </span>
+                ))}
 
               {item.status === "done" && index === 0 && (
                 <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-md bg-zinc-900/70 py-0.5 text-center text-[10px] font-semibold text-white">
@@ -523,9 +585,10 @@ export function ProductForm({ product }: { product: Product }) {
           </p>
         )}
         <p className="text-xs text-zinc-400">
-          Autant d&apos;images que vous voulez, 5 Mo maximum chacune. Elles sont envoyées
-          dès la sélection ; survolez une image pour changer son ordre — la première est
-          affichée en grand sur la landing.
+          Autant d&apos;images que vous voulez. Chaque photo — y compris les HEIC de
+          l&apos;iPhone — est convertie en WebP et redimensionnée dans votre navigateur,
+          puis envoyée aussitôt. Survolez une image pour changer son ordre : la première
+          est affichée en grand sur la landing.
         </p>
       </div>
 
@@ -538,7 +601,7 @@ export function ProductForm({ product }: { product: Product }) {
       <div className="flex items-center gap-3">
         <button
           type="submit"
-          disabled={pending || uploading}
+          disabled={pending || busy}
           className="flex items-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
         >
           {pending ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}

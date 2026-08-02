@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { updateSettings, type SettingsFormState } from "@/app/actions/settings";
+import { prepareImage } from "@/lib/prepare-image";
 import type { FreeDeliveryMode, Settings } from "@/lib/types";
 import { WILAYAS } from "@/lib/wilayas";
 
@@ -65,6 +66,8 @@ export function SettingsForm({ settings }: { settings: Settings }) {
   // Aperçu local du logo choisi : visible avant tout envoi au serveur
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
   const [freeDeliveryMode, setFreeDeliveryMode] = useState<FreeDeliveryMode>(
     settings.free_delivery_mode
   );
@@ -79,14 +82,38 @@ export function SettingsForm({ settings }: { settings: Settings }) {
     return () => URL.revokeObjectURL(logoPreview);
   }, [logoPreview]);
 
-  function handleLogoChange(file: File | undefined) {
-    setLogoPreview(file ? URL.createObjectURL(file) : null);
+  /**
+   * Le logo suit le même traitement que les images produit : décodé (HEIC
+   * compris) puis réencodé en WebP, sans quoi une photo iPhone ressortirait
+   * illisible pour tous les navigateurs sauf Safari. Le fichier converti
+   * remplace celui de l'input, c'est lui que le formulaire enverra.
+   */
+  async function handleLogoChange(file: File | undefined) {
+    setLogoError(null);
+    if (!file) {
+      setLogoPreview(null);
+      return;
+    }
     // Choisir une image annule une demande de retrait en cours
-    if (file) setRemoveLogo(false);
+    setRemoveLogo(false);
+    setLogoBusy(true);
+    try {
+      const converted = await prepareImage(file);
+      const transfer = new DataTransfer();
+      transfer.items.add(converted);
+      if (logoInputRef.current) logoInputRef.current.files = transfer.files;
+      setLogoPreview(URL.createObjectURL(converted));
+    } catch (e) {
+      setLogoError(e instanceof Error ? e.message : "Conversion échouée.");
+      clearLogoChoice();
+    } finally {
+      setLogoBusy(false);
+    }
   }
 
   function clearLogoChoice() {
     setLogoPreview(null);
+    setLogoError(null);
     if (logoInputRef.current) logoInputRef.current.value = "";
   }
 
@@ -156,12 +183,18 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
           <div className="flex flex-col items-start gap-1.5">
             <label className="flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-500 transition hover:border-indigo-400 hover:text-indigo-500">
-              <ImagePlus className="size-5" />
-              {logoPreview
-                ? "Choisir une autre image"
-                : settings.logo_url && !removeLogo
-                  ? "Remplacer le logo"
-                  : "Choisir un logo"}
+              {logoBusy ? (
+                <Loader2 className="size-5 animate-spin" />
+              ) : (
+                <ImagePlus className="size-5" />
+              )}
+              {logoBusy
+                ? "Conversion…"
+                : logoPreview
+                  ? "Choisir une autre image"
+                  : settings.logo_url && !removeLogo
+                    ? "Remplacer le logo"
+                    : "Choisir un logo"}
               <input
                 ref={logoInputRef}
                 type="file"
@@ -171,6 +204,10 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 onChange={(e) => handleLogoChange(e.target.files?.[0])}
               />
             </label>
+
+            {logoError && (
+              <p className="text-xs font-medium text-red-600">{logoError}</p>
+            )}
 
             {logoPreview ? (
               <button
@@ -415,7 +452,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
 
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || logoBusy}
         className="flex w-fit items-center gap-2 rounded-xl bg-linear-to-b from-indigo-500 to-indigo-600 shadow-md shadow-indigo-600/25 px-6 py-3 font-semibold text-white transition hover:bg-indigo-500 disabled:opacity-60"
       >
         {pending ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />}
