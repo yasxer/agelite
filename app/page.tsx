@@ -52,18 +52,25 @@ export default async function LandingPage() {
     >
       {settings.pixel_id && <MetaPixel pixelId={settings.pixel_id} />}
 
-      {/* Halos de couleur en arrière-plan */}
+      {/* Halos de couleur en arrière-plan.
+          Dégradés radiaux et non des cercles en `filter: blur()` : Safari
+          recalcule une couche floue à chaque frame de scroll, un dégradé est
+          peint une fois. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -top-32 right-[-20%] -z-0 size-[420px] rounded-full bg-(--primary) opacity-10 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-[-25%] top-[38%] size-[380px] rounded-full bg-(--primary) opacity-[0.07] blur-3xl"
+        className="pointer-events-none absolute inset-0 z-0"
+        style={{
+          backgroundImage: [
+            "radial-gradient(circle 460px at 100% 60px, color-mix(in srgb, var(--primary) 12%, transparent), transparent 65%)",
+            "radial-gradient(circle 420px at 0% 40%, color-mix(in srgb, var(--primary) 8%, transparent), transparent 65%)",
+          ].join(","),
+        }}
       />
 
-      {/* Header glassy */}
-      <header className="sticky top-0 z-40 border-b border-zinc-200/50 bg-white/70 backdrop-blur-xl">
+      {/* Header. Volontairement sans `backdrop-blur` : sur un élément sticky,
+          Safari (surtout iOS) refait le flou du contenu derrière à chaque
+          frame de scroll, ce qui saccade le défilement. */}
+      <header className="sticky top-0 z-40 border-b border-zinc-200/50 bg-white/95">
         <div className="mx-auto flex h-16 max-w-[420px] items-center justify-center gap-3 px-4">
           {settings.logo_url ? (
             <Image
@@ -164,7 +171,7 @@ export default async function LandingPage() {
       {/* Barre mobile fixe */}
       <a
         href="#commander"
-        className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-center gap-2 rounded-2xl bg-(--primary) px-6 py-4 text-base font-bold text-white shadow-2xl shadow-(--primary)/40 sm:hidden"
+        className="fixed inset-x-4 bottom-4 z-40 flex items-center justify-center gap-2 rounded-2xl bg-(--primary) px-6 py-4 text-base font-bold text-white shadow-lg shadow-(--primary)/30 sm:hidden"
       >
         Commander — {formatDA(product.price)}
         <ArrowDown className="size-5" />

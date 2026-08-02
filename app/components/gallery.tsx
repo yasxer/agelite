@@ -80,7 +80,7 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
           </button>
 
           {/* Indice zoom */}
-          <span className="pointer-events-none absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-zinc-900/50 text-white backdrop-blur-sm">
+          <span className="pointer-events-none absolute right-3 top-3 flex size-9 items-center justify-center rounded-full bg-zinc-900/60 text-white">
             <ZoomIn className="size-4.5" />
           </span>
 
@@ -91,7 +91,7 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
                 type="button"
                 onClick={prev}
                 aria-label="Image précédente"
-                className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-zinc-800 shadow-md backdrop-blur-sm transition hover:bg-white"
+                className="absolute left-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-md transition hover:bg-white"
               >
                 <ChevronLeft className="size-5" />
               </button>
@@ -99,7 +99,7 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
                 type="button"
                 onClick={next}
                 aria-label="Image suivante"
-                className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-zinc-800 shadow-md backdrop-blur-sm transition hover:bg-white"
+                className="absolute right-3 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-800 shadow-md transition hover:bg-white"
               >
                 <ChevronRight className="size-5" />
               </button>
@@ -151,7 +151,9 @@ export function Gallery({ images, alt }: { images: string[]; alt: string }) {
       {/* Lightbox plein écran */}
       {zoomed && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/95 backdrop-blur-sm"
+          // Fond à 95% d'opacité : le `backdrop-blur` était invisible derrière,
+          // mais coûtait un flou plein écran à chaque frame sur iOS.
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/95"
           onClick={() => setZoomed(false)}
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}

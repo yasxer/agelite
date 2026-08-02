@@ -105,7 +105,9 @@ export function Sidebar({
       </div>
 
       {/* Header mobile : logo + accès boutique + déconnexion */}
-      <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-zinc-200/70 bg-white/85 px-4 py-2.5 backdrop-blur-lg sm:hidden">
+      {/* Sans `backdrop-blur` : sur un élément fixe, Safari iOS refait le flou
+          du contenu derrière à chaque frame de scroll. */}
+      <header className="fixed inset-x-0 top-0 z-40 flex items-center justify-between border-b border-zinc-200/70 bg-white/95 px-4 py-2.5 sm:hidden">
         <div className="flex min-w-0 items-center gap-2.5">
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -141,7 +143,7 @@ export function Sidebar({
       </header>
 
       {/* Barre de navigation mobile — flottante */}
-      <nav className="fixed inset-x-3 bottom-3 z-40 flex gap-1 rounded-3xl bg-zinc-950/95 p-1.5 shadow-2xl shadow-zinc-900/40 ring-1 ring-white/10 backdrop-blur sm:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-40 flex gap-1 rounded-3xl bg-zinc-950/95 p-1.5 shadow-lg shadow-zinc-900/30 ring-1 ring-white/10 sm:hidden">
         {LINKS.map(({ href, short, icon: Icon }) => {
           const active = isActive(href);
           return (
