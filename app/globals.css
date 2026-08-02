@@ -50,13 +50,54 @@ html {
   animation: fade-up 0.4s ease-out 0.08s both;
 }
 
+/* Lightbox : le fond apparaît en fondu, l'image monte légèrement en échelle */
+@keyframes lightbox-backdrop {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes lightbox-image {
+  from {
+    opacity: 0;
+    transform: scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.lightbox-in {
+  animation: lightbox-backdrop 0.2s ease-out both;
+}
+
+.lightbox-in > .lightbox-frame {
+  animation: lightbox-image 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.lightbox-out {
+  animation: lightbox-backdrop 0.16s ease-in both reverse;
+}
+
+.lightbox-out > .lightbox-frame {
+  animation: lightbox-image 0.16s ease-in both reverse;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
 
   .animate-fade-up,
-  .animate-fade-up-delay {
+  .animate-fade-up-delay,
+  .lightbox-in,
+  .lightbox-in > .lightbox-frame,
+  .lightbox-out,
+  .lightbox-out > .lightbox-frame {
     animation: none;
   }
 }

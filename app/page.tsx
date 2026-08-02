@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ArrowDown, BadgeCheck, Banknote, PackageOpen, Truck } from "lucide-react";
+import { ArrowDown, BadgeCheck, Banknote, Check, PackageOpen, Truck } from "lucide-react";
 import { getProduct, getSettings } from "@/lib/data";
 import { Gallery } from "./components/gallery";
 import { MetaPixel } from "./components/meta-pixel";
@@ -148,6 +148,50 @@ export default async function LandingPage() {
             <Gallery images={product.images} alt={product.name} />
           </div>
         </div>
+
+        {/* Description et points forts saisis dans l'admin.
+            `dir="auto"` partout : la page est en LTR mais ces textes sont
+            saisis librement (arabe ici, français ailleurs) — le navigateur
+            déduit le sens du premier caractère fort, et les marges logiques
+            (`start-*`, `ps-*`) suivent. */}
+        {(product.description || product.features.length > 0) && (
+          <section className="flex flex-col gap-3 pt-9">
+            {product.description && (
+              <div
+                dir="auto"
+                className="relative overflow-hidden rounded-3xl bg-white py-5 pe-5 ps-6 shadow-sm ring-1 ring-zinc-200/60"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 inset-s-0 w-1 bg-(--primary)"
+                />
+                {/* `whitespace-pre-line` conserve les retours à la ligne saisis */}
+                <p className="whitespace-pre-line text-[15px] leading-relaxed text-zinc-600">
+                  {product.description}
+                </p>
+              </div>
+            )}
+
+            {product.features.length > 0 && (
+              // `gap-px` sur fond gris : des séparateurs d'un pixel entre les
+              // lignes blanches, sans bordure à gérer sur chacune.
+              <ul className="grid gap-px overflow-hidden rounded-3xl bg-zinc-200/70 shadow-sm ring-1 ring-zinc-200/60">
+                {product.features.map((feature) => (
+                  <li
+                    key={feature}
+                    dir="auto"
+                    className="flex items-start gap-3 bg-white px-5 py-3.5"
+                  >
+                    <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-(--primary)/15 text-(--primary)">
+                      <Check className="size-3" strokeWidth={3.5} />
+                    </span>
+                    <span className="text-sm font-medium text-zinc-700">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Formulaire */}
         <div id="commander" className="scroll-mt-24 pt-10">
