@@ -71,7 +71,9 @@ export function OrderForm({
   const [quantity, setQuantity] = useState(1);
   const [selectedColor, setSelectedColor] = useState<string | null>(null);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
-  const [deliveryType, setDeliveryType] = useState<"domicile" | "stopdesk">(
+  // Ce que le client a coché ; `deliveryType` plus bas tient compte des
+  // wilayas où Yalidine n'a aucun bureau.
+  const [deliveryChoice, setDeliveryChoice] = useState<"domicile" | "stopdesk">(
     "domicile"
   );
   const [wilaya, setWilaya] = useState("");
@@ -128,6 +130,20 @@ export function OrderForm({
   const centers = delivery?.centers ?? [];
   const selectedCenter = centers.find((c) => c.id === stopdeskId) ?? null;
   const stopdeskAvailable = centers.length > 0;
+  /** Tarifs chargés, mais Yalidine n'a aucun bureau dans cette wilaya. */
+  const noStopdeskHere = delivery !== null && !stopdeskAvailable;
+  /**
+   * Aucun bureau à proposer, que la wilaya n'en ait pas ou que Yalidine soit
+   * injoignable. Dans les deux cas la liste des bureaux ne peut pas s'afficher,
+   * donc l'option ne doit pas être sélectionnable : sinon le client la coche et
+   * se retrouve devant un choix vide, sans rien pour comprendre pourquoi.
+   */
+  const stopdeskBlocked = Boolean(wilaya) && !loadingFees && !stopdeskAvailable;
+
+  // Le client peut avoir coché Stopdesk avant de changer de wilaya : on dérive
+  // le mode réel plutôt que de corriger l'état après coup. Sans ça la commande
+  // partirait sans `stopdesk_id`, que le serveur rejette.
+  const deliveryType = stopdeskBlocked ? "domicile" : deliveryChoice;
 
   // Tarif réellement facturé par Yalidine pour ce mode de livraison
   const yalidineFee =
@@ -333,7 +349,7 @@ export function OrderForm({
                 label: "مكتب التوصيل (Stopdesk)",
                 icon: Store,
                 optionFee: delivery?.deskFee ?? null,
-                disabled: Boolean(delivery) && !stopdeskAvailable,
+                disabled: stopdeskBlocked,
               },
             ] as const
           ).map(({ value, label, icon: Icon, optionFee, disabled }) => (
@@ -353,7 +369,7 @@ export function OrderForm({
                 value={value}
                 disabled={disabled}
                 checked={deliveryType === value}
-                onChange={() => setDeliveryType(value)}
+                onChange={() => setDeliveryChoice(value)}
                 className="sr-only"
               />
               <Icon
@@ -374,6 +390,14 @@ export function OrderForm({
             </label>
           ))}
         </div>
+      )}
+
+      {/* Wilaya sans bureau : on le dit, l'option grisée seule n'explique rien */}
+      {!hideDeliveryChoice && noStopdeskHere && (
+        <p className="flex items-start gap-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+          <Store className="mt-0.5 size-4 shrink-0" />
+          لا يوجد مكتب Stopdesk في هذه الولاية. التوصيل للمنزل فقط.
+        </p>
       )}
 
       {/* Stopdesk : choix du bureau Yalidine de la wilaya */}
